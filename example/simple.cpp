@@ -8,10 +8,21 @@ void onMain() {
 
     express_t app;
 
+    app.USE([]( express_cli_t cli, function_t<void> next ){
+        console::log( "this is a middleware" );
+        next();
+    });
+
+    app.GET("/test",[]( express_cli_t cli ){
+        cli.status(200)
+           .header( "content-type", "text/plain" )
+           .send("this is a test");
+    });
+
     app.GET([]( express_cli_t cli ){
-        cli.status(200);
-        cli.header( "content-type", "text/plain" );
-        cli.send("Hello World!");
+        cli.status(200)
+           .header( "content-type", "text/plain" )
+           .send("Hello World!");
     });
 
     app.listen( "localhost", 8000, []( ... ){
