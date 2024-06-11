@@ -25,6 +25,7 @@
 #include <nodepp/http.h>
 #include <nodepp/path.h>
 #include <nodepp/json.h>
+#include <nodepp/zlib.h>
 #include <nodepp/url.h>
 #include <nodepp/fs.h>
 
@@ -427,15 +428,18 @@ namespace nodepp { namespace express {
 
                auto str = fs::readable( dir );
 
-               if( cli.headers["Range"].empty() ){
-
-                    cli.header( "Content-Length", string::to_string(str.size()) );
+               if ( cli.headers["Range"].empty() == true ){
+               if ( cli.headers["Accept-Encoding"].empty() == false ){
+                    cli.header( "Content-Encoding", "gzip" );
+               }    cli.header( "Content-Length", string::to_string(str.size()) );
                     cli.header( "Cache-Control", "public, max-age=3600" );
                     cli.header( "Content-Type",   path::mimetype(dir) );
                     cli.send();
 
-                    if( !regex::test(path::mimetype(dir),"audio|video",true) ) 
-                         stream::pipe( str, cli );
+                    if( !regex::test(path::mimetype(dir),"audio|video",true) ) {
+                    if( cli.headers["Accept-Encoding"].empty() == false ){
+                             zlib::gzip::pipe( str, cli );
+                    } else { stream::pipe( str, cli ); }}
 
                } else {
 
