@@ -2,7 +2,7 @@
 
 A Simple ExpressJS Implementation in NodePP
 
-# Dependencies
+## Dependencies
 - Zlib
     - 🪟: `pacman -S mingw-w64-ucrt-x86_64-zlib`
     - 🐧: `sudo apt install zlib1g-dev`
