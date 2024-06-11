@@ -51,11 +51,14 @@ public: query_t params;
      express_cli_t& sendFile( string_t dir ) { 
           if( exp->state == 0 ){ return (*this); } if( fs::exists_file( dir ) == false )
             { process::error("file does not exist"); } file_t file ( dir, "r" );
-          header( "content-length", string::to_string(file.size()) );
-          header( "content-type", path::mimetype(dir) );
-          write_header( exp->status, exp->_headers );
-          stream::pipe( file,*this ); exp->state = 0;
-          return (*this);
+              header( "content-length", string::to_string(file.size()) );
+              header( "content-type", path::mimetype(dir) );
+          if( headers["Accept-Encoding"].empty() == false ){
+              header( "Content-Encoding", "gzip" ); send();
+              zlib::gzip::pipe( file, *this );
+          } else {
+              send(); stream::pipe( file,*this );
+          }   exp->state = 0; return (*this);
      }
 
      express_cli_t& sendJSON( object_t json ) {
@@ -415,9 +418,9 @@ namespace nodepp { namespace express {
 
                string_t pth = regex::replace( cli.path, "/[^/]+", base ); 
                string_t dir = pth=="/" ? path::join( base,"index" ): pth;
+               if ( dir[dir.last()] == '/' ){ dir += "index.html"; }
 
                if( fs::exists_file(dir+".html") == true ){ dir += ".html"; }
-
                if( fs::exists_file(dir) == false || dir == base ){
                if( fs::exists_file( path::join( base, "404.html" ) )){
                    dir = path::join( base, "404.html" );
@@ -437,8 +440,8 @@ namespace nodepp { namespace express {
                     cli.send();
 
                     if( !regex::test(path::mimetype(dir),"audio|video",true) ) {
-                    if( cli.headers["Accept-Encoding"].empty() == false ){
-                             zlib::gzip::pipe( str, cli );
+                    if(  cli.headers["Accept-Encoding"].empty() == false ){
+                         zlib::gzip::pipe( str, cli );
                     } else { stream::pipe( str, cli ); }}
 
                } else {
