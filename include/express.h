@@ -34,55 +34,69 @@ namespace nodepp { class express_cli_t : public http_t {
 protected:
 
     struct NODE {
-        uint _status= 200;
         header_t _headers; 
-    }; ptr_t<NODE> obj;
+        uint  status= 200;
+        int    state= 1;
+    };  ptr_t<NODE> exp;
 
 public: query_t params;
 
-     express_cli_t ( http_t& cli ) noexcept : http_t( cli ), obj( new NODE() ) {}
+     express_cli_t ( http_t& cli ) noexcept : http_t( cli ), exp( new NODE() ) {}
+
+    ~express_cli_t () noexcept { if( exp.count() > 1 ){ return; } free(); } 
+
+    /*.........................................................................*/
 
      express_cli_t& sendFile( string_t dir ) { 
-          if( fs::exists_file( dir ) == false )
+          if( exp->state == 0 ){ return (*this); } if( fs::exists_file( dir ) == false )
             { process::error("file does not exist"); } file_t file ( dir, "r" );
           header( "content-length", string::to_string(file.size()) );
           header( "content-type", path::mimetype(dir) );
-          write_header( obj->_status, obj->_headers );
-          stream::pipe( file, *this ); return (*this);
-     }
-
-     express_cli_t& sendJSON( object_t obj ) {
-          auto data = json::stringify( obj );
-          header( "content-length", string::to_string(data.size()) );
-          header( "content-type", path::mimetype(".json") );
-          send( data ); return (*this);
-     }
-
-     express_cli_t& send( string_t msg ) { 
-          header( "content-length", string::to_string(msg.size()) );
-          write_header( obj->_status, obj->_headers );
-          write( msg ); close(); return (*this); 
-     }
-
-     express_cli_t& header( string_t name, string_t value ) {
-          obj->_headers[ name ] = value; return (*this);
-     }
-
-     express_cli_t& redirect( uint value, string_t url ) {
-          header( "location", url ); status( value ); 
-          send( "" ); close(); return (*this);
-     }
-
-     express_cli_t& send() {
-          write_header( obj->_status, obj->_headers ); 
+          write_header( exp->status, exp->_headers );
+          stream::pipe( file,*this ); exp->state = 0;
           return (*this);
      }
 
+     express_cli_t& sendJSON( object_t json ) {
+          if( exp->state == 0 ){ return (*this); } auto data = json::stringify(json);
+          header( "content-length", string::to_string(data.size()) );
+          header( "content-type", path::mimetype(".json") );
+          send( data ); exp->state = 0; return (*this);
+     }
+
+     express_cli_t& send( string_t msg ) { 
+          if( exp->state == 0 ){ return (*this); }
+          header( "content-length", string::to_string(msg.size()) );
+          write_header( exp->status, exp->_headers );
+          write( msg ); close(); exp->state = 0;
+          return (*this); 
+     }
+
+     express_cli_t& redirect( uint value, string_t url ) {
+          if( exp->state == 0 ){ return (*this); }
+          header( "location",url );status( value ); 
+          send( "" ); close(); exp->state = 0; 
+          return (*this);
+     }
+
+     express_cli_t& header( string_t name, string_t value ) {
+          if( exp->state == 0 )    { return (*this); }
+          exp->_headers[name]=value; return (*this);
+     }
+
      express_cli_t& status( uint value ) {
-          obj->_status = value; return (*this);
+          if( exp->state == 0 ){ return (*this); }
+              exp->status=value; return (*this);
+     }
+
+     express_cli_t& send() {
+          if( exp->state == 0 ){ return (*this); }
+          write_header(exp->status,exp->_headers); 
+          exp->state = 0; return (*this);
      }
 
      express_cli_t& redirect( string_t url ) {
+          if( exp->state == 0 ){ return (*this); }
           return redirect( 301, url );
      }
 
@@ -90,18 +104,16 @@ public: query_t params;
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { struct express_item_t {
-    optional_t<MIDDL> middleware;
-    optional_t<CALBK> callback;
-    optional_t<any_t> router;
-    string_t          method;
-    string_t          path;
-};}
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
 namespace nodepp { class express_t {
 protected:
+
+     struct express_item_t {
+          optional_t<MIDDL> middleware;
+          optional_t<CALBK> callback;
+          optional_t<any_t> router;
+          string_t          method;
+          string_t          path;
+     };
 
      struct NODE {
           queue_t<express_item_t> list;
@@ -123,6 +135,7 @@ protected:
           for ( ulong x=0; x<_path[0].size(); x++ ){ if( _path[1][x]==nullptr ){ return false; }
           elif( _path[1][x][0] == ':' ){ cli.params[_path[1][x].slice(1)]= _path[0][x]; }
           elif( _path[1][x]    == "*"         ){ continue;     }
+          elif( _path[1][x]    == nullptr     ){ continue;     }
           elif( _path[1][x]    != _path[0][x] ){ return false; }
           }
 
@@ -141,9 +154,10 @@ protected:
      template<class T> void run( T& self, express_cli_t& cli ) const noexcept {
           auto n = self->obj->list.first(); function_t<void> next = [&](){ n = n->next; };
           while( n!=nullptr ){ if( !cli.is_available() ){ break; } 
-               if(( n->data.path == nullptr && self->obj->path == nullptr )|| 
-                   self->path_match( cli, self->obj->path, n->data.path ) ){
-               if( n->data.method== nullptr || n->data.method == cli.method )
+               if(( n->data.path == nullptr && regex::test( cli.path, self->obj->path )) 
+               || ( n->data.path == nullptr && self->obj->path == nullptr) 
+               || self->path_match( cli, self->obj->path, n->data.path )){
+               if( n->data.method== nullptr || n->data.method== cli.method )
                  { self->execute( n->data, cli, next ); } else { next(); }
                } else { next(); }
           }
@@ -375,7 +389,8 @@ public:
           auto self = type::bind( this );
 
           function_t<void,http_t> cb = [=]( http_t cli ){
-               express_cli_t res (cli); run( self, res );
+               express_cli_t res(cli); 
+               self->run( self, res );
           };
 
           obj->http = http::server( cb, obj->agent );
@@ -394,16 +409,20 @@ namespace nodepp { namespace express {
 
           app.GET([=]( express_cli_t cli ){
 
+               if( regex::match_all( cli.path, "/" ).size() == 1 )
+                 { cli.path = path::join( "/", base, cli.path ); }
+
                string_t pth = regex::replace( cli.path, "/[^/]+", base ); 
                string_t dir = pth=="/" ? path::join( base,"index" ): pth;
 
                if( fs::exists_file(dir+".html") == true ){ dir += ".html"; }
-               
-               if( fs::exists_file(dir) == false ){
-               if( fs::exists_file( path::join( base, "404.html" ) ) ){
+
+               if( fs::exists_file(dir) == false || dir == base ){
+               if( fs::exists_file( path::join( base, "404.html" ) )){
                    dir = path::join( base, "404.html" );
-               } else {
-                   cli.status(404); cli.send("Oops 404 Error"); return;
+               } else { 
+                   cli.status(404).send("Oops 404 Error"); 
+                   return; 
                }}
 
                auto str = fs::readable( dir );
@@ -418,15 +437,14 @@ namespace nodepp { namespace express {
                     if( !regex::test(path::mimetype(dir),"audio|video",true) ) 
                          stream::pipe( str, cli );
 
-               } elif ( !cli.headers["Range"].empty() ) {
+               } else {
 
                     array_t<string_t> range = regex::match_all(cli.headers["Range"],"\\d+",true);
                      ulong rang[2]; rang[0] = string::to_ulong( range[0] );
-                           rang[1]= min( rang[0]+CHUNK_MB(10), str.size()-1 );
+                           rang[1]= min(rang[0]+CHUNK_MB(10),str.size()-1);
 
                     cli.header( "Content-Range", string::format("bytes %lu-%lu/%lu",rang[0],rang[1],str.size()) );
-                    cli.header( "Content-Type",  path::mimetype(dir) );
-                    cli.header( "Accept-Range", "bytes" ); 
+                    cli.header( "Content-Type",  path::mimetype(dir) ); cli.header( "Accept-Range", "bytes" ); 
                     cli.status(206); cli.send();
 
                     str.set_range( rang[0], rang[1] ); stream::pipe( str, cli );

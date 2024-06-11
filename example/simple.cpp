@@ -1,10 +1,3 @@
-# Nodepp
-
-A Simple ExpressJS Implementation in NodePP
-
-## Usage
-
-```cpp
 #include <nodepp/nodepp.h>
 #include <nodepp/fs.h>
 #include <express.h>
@@ -27,8 +20,3 @@ void onMain() {
     });
 
 }
-```
-
-## License
-
-**Nodepp** is distributed under the MIT License. See the LICENSE file for more details.
