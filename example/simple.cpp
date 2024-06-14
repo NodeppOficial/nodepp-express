@@ -1,24 +1,24 @@
 #include <nodepp/nodepp.h>
-#include <express.h>
+#include <http.h>
 
 using namespace nodepp;
 
 void onMain() {
 
-    express_t app;
+    auto app = express::http::add();
 
-    app.USE([]( express_cli_t cli, function_t<void> next ){
+    app.USE([]( express_http_t cli, function_t<void> next ){
         console::log( "this is a middleware" );
         next();
     });
 
-    app.GET("/test",[]( express_cli_t cli ){
+    app.GET("/test",[]( express_http_t cli ){
         cli.status(200)
            .header( "content-type", "text/plain" )
            .send("this is a test");
     });
 
-    app.GET([]( express_cli_t cli ){
+    app.GET([]( express_http_t cli ){
         cli.status(200)
            .header( "content-type", "text/plain" )
            .send("Hello World!");

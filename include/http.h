@@ -9,13 +9,13 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#ifndef NODEPP_EXPRESS
-#define NODEPP_EXPRESS
+#ifndef NODEPP_EXPRESS_HTTP
+#define NODEPP_EXPRESS_HTTP
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#define MIDDL function_t<void,express_cli_t,function_t<void>>
-#define CALBK function_t<void,express_cli_t>
+#define MIDDL function_t<void,express_http_t,function_t<void>>
+#define CALBK function_t<void,express_http_t>
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
@@ -31,7 +31,7 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { class express_cli_t : public http_t { 
+namespace nodepp { class express_http_t : public http_t { 
 protected:
 
     struct NODE {
@@ -42,13 +42,13 @@ protected:
 
 public: query_t params;
 
-     express_cli_t ( http_t& cli ) noexcept : http_t( cli ), exp( new NODE() ) {}
+     express_http_t ( http_t& cli ) noexcept : http_t( cli ), exp( new NODE() ) {}
 
-    ~express_cli_t () noexcept { if( exp.count() > 1 ){ return; } free(); } 
+    ~express_http_t () noexcept { if( exp.count() > 1 ){ return; } free(); } 
 
     /*.........................................................................*/
 
-     express_cli_t& sendFile( string_t dir ) { 
+     express_http_t& sendFile( string_t dir ) { 
           if( exp->state == 0 ){ return (*this); } if( fs::exists_file( dir ) == false )
             { process::error("file does not exist"); } file_t file ( dir, "r" );
               header( "content-length", string::to_string(file.size()) );
@@ -61,14 +61,14 @@ public: query_t params;
           }   exp->state = 0; return (*this);
      }
 
-     express_cli_t& sendJSON( object_t json ) {
+     express_http_t& sendJSON( object_t json ) {
           if( exp->state == 0 ){ return (*this); } auto data = json::stringify(json);
           header( "content-length", string::to_string(data.size()) );
           header( "content-type", path::mimetype(".json") );
           send( data ); exp->state = 0; return (*this);
      }
 
-     express_cli_t& send( string_t msg ) { 
+     express_http_t& send( string_t msg ) { 
           if( exp->state == 0 ){ return (*this); }
           header( "content-length", string::to_string(msg.size()) );
           write_header( exp->status, exp->_headers );
@@ -76,30 +76,30 @@ public: query_t params;
           return (*this); 
      }
 
-     express_cli_t& redirect( uint value, string_t url ) {
+     express_http_t& redirect( uint value, string_t url ) {
           if( exp->state == 0 ){ return (*this); }
           header( "location",url );status( value ); 
           send( "" ); close(); exp->state = 0; 
           return (*this);
      }
 
-     express_cli_t& header( string_t name, string_t value ) {
+     express_http_t& header( string_t name, string_t value ) {
           if( exp->state == 0 )    { return (*this); }
           exp->_headers[name]=value; return (*this);
      }
 
-     express_cli_t& status( uint value ) {
+     express_http_t& status( uint value ) {
           if( exp->state == 0 ){ return (*this); }
               exp->status=value; return (*this);
      }
 
-     express_cli_t& send() {
+     express_http_t& send() {
           if( exp->state == 0 ){ return (*this); }
           write_header(exp->status,exp->_headers); 
           exp->state = 0; return (*this);
      }
 
-     express_cli_t& redirect( string_t url ) {
+     express_http_t& redirect( string_t url ) {
           if( exp->state == 0 ){ return (*this); }
           return redirect( 301, url );
      }
@@ -108,7 +108,7 @@ public: query_t params;
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { class express_t {
+namespace nodepp { class express_tcp_t {
 protected:
 
      struct express_item_t {
@@ -126,7 +126,7 @@ protected:
           tcp_t    http;
      };   ptr_t<NODE> obj;
 
-     bool path_match( express_cli_t& cli, string_t base, string_t path ) const noexcept {
+     bool path_match( express_http_t& cli, string_t base, string_t path ) const noexcept {
           string_t pathname = path == nullptr ? base : path::join( base, path );
 
           array_t<string_t> _path[2] = {
@@ -146,16 +146,16 @@ protected:
           return true;
      }
 
-     void execute( express_item_t& data, express_cli_t& cli, function_t<void>& next ) const noexcept {
+     void execute( express_item_t& data, express_http_t& cli, function_t<void>& next ) const noexcept {
             if( data.middleware.has_value() ){ data.middleware.value()( cli, next ); }
           elif( data.callback.has_value()   ){ data.callback.value()( cli ); next(); }
           elif( data.router.has_value()     ){ 
-                auto self = type::bind( data.router.value().as<express_t>() );
+                auto self = type::bind( data.router.value().as<express_tcp_t>() );
                      self->run( self, cli ); next();
           }
      }
 
-     template<class T> void run( T& self, express_cli_t& cli ) const noexcept {
+     template<class T> void run( T& self, express_http_t& cli ) const noexcept {
           auto n = self->obj->list.first(); function_t<void> next = [&](){ n = n->next; };
           while( n!=nullptr ){ if( !cli.is_available() ){ break; } 
                if(( n->data.path == nullptr && regex::test( cli.path, self->obj->path )) 
@@ -169,11 +169,11 @@ protected:
 
 public:
 
-    express_t( agent_t* agent ) noexcept : obj( new NODE() ){ agent = obj->agent; }
+    express_tcp_t( agent_t* agent ) noexcept : obj( new NODE() ){ obj->agent = agent; }
 
-    express_t() noexcept : obj( new NODE() ) {}
+    express_tcp_t() noexcept : obj( new NODE() ) {}
 
-   ~express_t() noexcept {}
+   ~express_tcp_t() noexcept {}
 
     /*.........................................................................*/
 
@@ -189,7 +189,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_t& USE( string_t _path, express_t cb ) const noexcept {
+    const express_tcp_t& USE( string_t _path, express_tcp_t cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          cb.set_path( path::join( obj->path, _path ) );
          item.path       = nullptr;
@@ -198,7 +198,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_t& USE( express_t cb ) const noexcept {
+    const express_tcp_t& USE( express_tcp_t cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          cb.set_path( path::join( obj->path, "" ) );
          item.path       = nullptr;
@@ -209,7 +209,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_t& USE( string_t _path, MIDDL cb ) const noexcept {
+    const express_tcp_t& USE( string_t _path, MIDDL cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.middleware = optional_t<MIDDL>(cb);
          item.method     = nullptr;
@@ -217,7 +217,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_t& USE( MIDDL cb ) const noexcept {
+    const express_tcp_t& USE( MIDDL cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.middleware = optional_t<MIDDL>(cb);
          item.method     = nullptr;
@@ -227,7 +227,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_t& GET( string_t _path, CALBK cb ) const noexcept {
+    const express_tcp_t& GET( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "GET";
          item.path     = _path;
@@ -235,7 +235,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_t& GET( CALBK cb ) const noexcept {
+    const express_tcp_t& GET( CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.path     = nullptr;
          item.method   = "GET";
@@ -245,7 +245,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_t& POST( string_t _path, CALBK cb ) const noexcept {
+    const express_tcp_t& POST( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "POST";
          item.path     = _path;
@@ -253,7 +253,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_t& POST( CALBK cb ) const noexcept {
+    const express_tcp_t& POST( CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.path     = nullptr;
          item.method   = "POST";
@@ -263,7 +263,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_t& DELETE( string_t _path, CALBK cb ) const noexcept {
+    const express_tcp_t& DELETE( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "DELETE";
          item.path     = _path;
@@ -271,7 +271,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_t& DELETE( CALBK cb ) const noexcept {
+    const express_tcp_t& DELETE( CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "DELETE";
          item.path     = nullptr;
@@ -281,7 +281,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_t& PUT( string_t _path, CALBK cb ) const noexcept {
+    const express_tcp_t& PUT( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "PUT";
          item.path     = _path;
@@ -289,7 +289,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_t& PUT( CALBK cb ) const noexcept {
+    const express_tcp_t& PUT( CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.path     = nullptr;
          item.method   = "PUT";
@@ -299,7 +299,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_t& HEAD( string_t _path, CALBK cb ) const noexcept {
+    const express_tcp_t& HEAD( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "HEAD";
          item.path     = _path;
@@ -307,7 +307,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_t& HEAD( CALBK cb ) const noexcept {
+    const express_tcp_t& HEAD( CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.path     = nullptr;
          item.method   = "HEAD";
@@ -317,7 +317,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_t& TRACE( string_t _path, CALBK cb ) const noexcept {
+    const express_tcp_t& TRACE( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "TRACE";
          item.path     = _path;
@@ -325,7 +325,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_t& TRACE( CALBK cb ) const noexcept {
+    const express_tcp_t& TRACE( CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.path     = nullptr;
          item.method   = "TRACE";
@@ -335,7 +335,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_t& PATCH( string_t _path, CALBK cb ) const noexcept {
+    const express_tcp_t& PATCH( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "PATCH";
          item.path     = _path;
@@ -343,7 +343,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_t& PATCH( CALBK cb ) const noexcept {
+    const express_tcp_t& PATCH( CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.path     = nullptr;
          item.method   = "PATCH";
@@ -353,7 +353,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_t& OPTIONS( string_t _path, CALBK cb ) const noexcept {
+    const express_tcp_t& OPTIONS( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "OPTIONS";
          item.path     = _path;
@@ -361,7 +361,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_t& OPTIONS( CALBK cb ) const noexcept {
+    const express_tcp_t& OPTIONS( CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "OPTIONS";
          item.path     = nullptr;
@@ -371,7 +371,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_t& CONNECT( string_t _path, CALBK cb ) const noexcept {
+    const express_tcp_t& CONNECT( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "CONNECT";
          item.path     = _path;
@@ -379,7 +379,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_t& CONNECT( CALBK cb ) const noexcept {
+    const express_tcp_t& CONNECT( CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "CONNECT";
          item.path     = nullptr;
@@ -393,11 +393,11 @@ public:
           auto self = type::bind( this );
 
           function_t<void,http_t> cb = [=]( http_t cli ){
-               express_cli_t res(cli); 
+               express_http_t res(cli); 
                self->run( self, res );
           };
 
-          obj->http = http::server( cb, obj->agent );
+          obj->http=http::server( cb, obj->agent );
           obj->http.listen( args... );
     }
 
@@ -405,13 +405,15 @@ public:
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { namespace express {  
+namespace nodepp { namespace express { namespace http {  
 
-     express_t create() { return express_t(); }
+     template< class... T > express_tcp_t add( T... args ) { 
+        return express_tcp_t( args... ); 
+     }
 
-     express_t file( string_t base ) { express_t app;
+     express_tcp_t file( string_t base ) { express_tcp_t app;
 
-          app.GET([=]( express_cli_t cli ){
+          app.GET([=]( express_http_t cli ){
 
                if( regex::match_all( cli.path, "/" ).size() == 1 )
                  { cli.path = path::join( "/", base, cli.path ); }
@@ -462,7 +464,7 @@ namespace nodepp { namespace express {
           return app;
      }
 
-}}
+}}}
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
