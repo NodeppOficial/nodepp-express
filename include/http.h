@@ -20,6 +20,7 @@
 /*────────────────────────────────────────────────────────────────────────────*/
 
 #include <nodepp/nodepp.h>
+
 #include <nodepp/optional.h>
 #include <nodepp/stream.h>
 #include <nodepp/http.h>
@@ -29,13 +30,16 @@
 #include <nodepp/url.h>
 #include <nodepp/fs.h>
 
+#include "cookie.h"
+
 /*────────────────────────────────────────────────────────────────────────────*/
 
 namespace nodepp { class express_http_t : public http_t { 
 protected:
 
     struct NODE {
-        header_t _headers; 
+        header_t _headers;
+        cookie_t _cookies;
         uint  status= 200;
         int    state= 1;
     };  ptr_t<NODE> exp;
@@ -76,6 +80,24 @@ public: query_t params;
           return (*this); 
      }
 
+     express_http_t& cookie( string_t name, string_t value ) {
+          if( exp->state == 0 ){ return (*this); } 
+              exp->_cookies[ name ] = value;
+          header( "Set-Cookie", cookie::format( exp->_cookies ) );
+          return (*this);
+     }
+
+     express_http_t& header( string_t name, string_t value ) {
+          if( exp->state == 0 )    { return (*this); }
+          exp->_headers[name]=value; return (*this);
+     }
+
+     express_http_t& render( string_t msg ) {
+          if( exp->state == 0 )    { return (*this); }
+          header( "Content-Type", path::mimetype(".html") );
+          send( msg ); return (*this);
+     }
+
      express_http_t& redirect( uint value, string_t url ) {
           if( exp->state == 0 ){ return (*this); }
           header( "location",url );status( value ); 
@@ -83,9 +105,10 @@ public: query_t params;
           return (*this);
      }
 
-     express_http_t& header( string_t name, string_t value ) {
-          if( exp->state == 0 )    { return (*this); }
-          exp->_headers[name]=value; return (*this);
+     express_http_t& clear_cookies() {
+          if( exp->state == 0 ){ return (*this); } 
+          header( "Clear-Site-Data", "cookies" );
+          return (*this);
      }
 
      express_http_t& status( uint value ) {
