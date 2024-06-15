@@ -425,7 +425,7 @@ public:
                self->run( self, res );
           };
 
-          if( obj->ssl == nullptr ){ process::error("SSL undefined"); }
+          if( obj->ssl == nullptr ){ process::error("SSL not found"); }
 
           obj->http=https::server( cb, obj->ssl, obj->agent );
           obj->http.listen( args... );
