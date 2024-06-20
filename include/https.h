@@ -22,6 +22,7 @@
 #include <nodepp/nodepp.h>
 
 #include <nodepp/optional.h>
+#include <nodepp/cookie.h>
 #include <nodepp/stream.h>
 #include <nodepp/https.h>
 #include <nodepp/path.h>
@@ -29,8 +30,6 @@
 #include <nodepp/zlib.h>
 #include <nodepp/url.h>
 #include <nodepp/fs.h>
-
-#include "cookie.h"
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
