@@ -48,7 +48,9 @@ public: query_t params;
 
      express_http_t ( http_t& cli ) noexcept : http_t( cli ), exp( new NODE() ) {}
 
-    ~express_http_t () noexcept { if( exp.count() > 1 ){ return; } free(); } 
+    ~express_http_t () noexcept { if( exp.count() > 1 ){ return; } free(); }
+
+     express_http_t () noexcept : exp( new NODE() ) {} 
 
     /*.........................................................................*/
 
