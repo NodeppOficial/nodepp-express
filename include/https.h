@@ -49,6 +49,8 @@ public: query_t params;
 
     ~express_https_t () noexcept { if( exp.count() > 1 ){ return; } free(); } 
 
+     express_https_t () noexcept : exp( new NODE() ) {}
+
     /*.........................................................................*/
 
      express_https_t& sendFile( string_t dir ) { 
