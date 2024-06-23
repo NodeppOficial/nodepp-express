@@ -254,6 +254,24 @@ public:
 
     /*.........................................................................*/
 
+    const express_tls_t& ALL( string_t _path, CALBK cb ) const noexcept {
+         express_item_t item; memset( &item, sizeof(item), 0 );
+         item.method   = nullptr;
+         item.path     = _path;
+         item.callback = cb;
+         obj->list.push( item ); return (*this);
+    }
+
+    const express_tls_t& ALL( CALBK cb ) const noexcept {
+         express_item_t item; memset( &item, sizeof(item), 0 );
+         item.path     = nullptr;
+         item.method   = nullptr;
+         item.callback = cb;
+         obj->list.push( item ); return (*this);
+    }
+
+    /*.........................................................................*/
+
     const express_tls_t& GET( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "GET";
