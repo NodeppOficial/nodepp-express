@@ -100,8 +100,7 @@ public: query_t params;
      express_https_t& redirect( uint value, string_t url ) {
           if( exp->state == 0 ){ return (*this); }
           header( "location",url );status( value ); 
-          send( "" ); close(); exp->state = 0; 
-          return (*this);
+          send(); exp->state = 0; return (*this);
      }
 
      express_https_t& clear_cookies() {
@@ -146,7 +145,7 @@ protected:
           ssl_t*   ssl  = nullptr;
           agent_t* agent= nullptr;
           string_t path = nullptr;
-          tls_t    http;
+          tls_t    fd;
      };   ptr_t<NODE> obj;
 
      bool path_match( express_https_t& cli, string_t base, string_t path ) const noexcept {
@@ -210,9 +209,9 @@ public:
 
     /*.........................................................................*/
 
-    bool is_closed() const noexcept { return obj->http.is_closed(); }
+    bool is_closed() const noexcept { return obj->fd.is_closed(); }
 
-    void close() const noexcept { obj->http.close(); }
+    void close() const noexcept { obj->fd.close(); }
 
     /*.........................................................................*/
 
@@ -444,8 +443,8 @@ public:
 
           if( obj->ssl == nullptr ){ process::error("SSL not found"); }
 
-          obj->http=https::server( cb, obj->ssl, obj->agent );
-          obj->http.listen( args... );
+          obj->fd=https::server( cb, obj->ssl, obj->agent );
+          obj->fd.listen( args... );
     }
 
 };}
