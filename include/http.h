@@ -41,7 +41,7 @@ protected:
         header_t _headers;
         cookie_t _cookies;
         uint  status= 200;
-        int    state= 1;
+        char  state = 1;
     };  ptr_t<NODE> exp;
 
 public: query_t params;
@@ -49,6 +49,10 @@ public: query_t params;
      express_http_t ( http_t& cli ) noexcept : http_t( cli ), exp( new NODE() ) {}
 
     ~express_http_t () noexcept { if( exp.count() > 1 ){ return; } free(); } 
+
+    /*.........................................................................*/
+
+    bool is_express_available() const noexcept { return exp->state > 0; }
 
     /*.........................................................................*/
 
@@ -101,8 +105,7 @@ public: query_t params;
      express_http_t& redirect( uint value, string_t url ) {
           if( exp->state == 0 ){ return (*this); }
           header( "location",url );status( value ); 
-          send( "" ); close(); exp->state = 0; 
-          return (*this);
+          send(); exp->state = 0; return (*this);
      }
 
      express_http_t& clear_cookies() {
@@ -146,7 +149,7 @@ protected:
           queue_t<express_item_t> list;
           agent_t* agent= nullptr;
           string_t path = nullptr;
-          tcp_t    http;
+          tcp_t    fd;
      };   ptr_t<NODE> obj;
 
      bool path_match( express_http_t& cli, string_t base, string_t path ) const noexcept {
@@ -206,9 +209,9 @@ public:
 
     /*.........................................................................*/
 
-    bool is_closed() const noexcept { return obj->http.is_closed(); }
+    bool is_closed() const noexcept { return obj->fd.is_closed(); }
 
-    void close() const noexcept { obj->http.close(); }
+    void close() const noexcept { obj->fd.close(); }
 
     /*.........................................................................*/
 
@@ -438,8 +441,8 @@ public:
                self->run( self, res );
           };
 
-          obj->http=http::server( cb, obj->agent );
-          obj->http.listen( args... );
+          obj->fd=http::server( cb, obj->agent );
+          obj->fd.listen( args... );
     }
 
 };}
@@ -455,6 +458,8 @@ namespace nodepp { namespace express { namespace http {
      express_tcp_t file( string_t base ) { express_tcp_t app;
 
           app.GET([=]( express_http_t cli ){
+
+               if( !cli.is_express_available() ){ return; }
 
                if( regex::match_all( cli.path, "/" ).size() == 1 )
                  { cli.path = path::join( "/", base, cli.path ); }
