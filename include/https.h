@@ -40,21 +40,31 @@ protected:
         header_t _headers; 
         cookie_t _cookies;
         uint  status= 200;
-        int    state= 1;
+        char   state= 0;
     };  ptr_t<NODE> exp;
 
 public: query_t params;
 
-     express_https_t ( https_t& cli ) noexcept : https_t( cli ), exp( new NODE() ) {}
+     express_https_t( https_t& cli ) noexcept : https_t( cli ), exp( new NODE() ) { exp->state = 1; }
 
-    ~express_https_t () noexcept { if( exp.count() > 1 ){ return; } free(); } 
+     express_https_t() noexcept : exp( new NODE() ) {}
 
-     express_https_t () noexcept : exp( new NODE() ) { obj->state = 0; }
+    ~express_https_t() noexcept { 
+          if( exp.count() > 1 ){ return; }
+          if( exp->state <= 0 ){ return; } 
+              exp->state  = 0; free();
+     } 
+
+    /*.........................................................................*/
+
+     bool is_express_available() const noexcept { return exp->state > 0; }
+
+    bool is_express_closed() const noexcept { return exp->state <= 0; }
 
     /*.........................................................................*/
 
      express_https_t& sendFile( string_t dir ) { 
-          if( exp->state == 0 ){ return (*this); } if( fs::exists_file( dir ) == false )
+          if( exp->state <= 0 ){ return (*this); } if( fs::exists_file( dir ) == false )
             { process::error("file does not exist"); } file_t file ( dir, "r" );
               header( "content-length", string::to_string(file.size()) );
               header( "content-type", path::mimetype(dir) );
@@ -67,14 +77,14 @@ public: query_t params;
      }
 
      express_https_t& sendJSON( object_t json ) {
-          if( exp->state == 0 ){ return (*this); } auto data = json::stringify(json);
+          if( exp->state <= 0 ){ return (*this); } auto data = json::stringify(json);
           header( "content-length", string::to_string(data.size()) );
           header( "content-type", path::mimetype(".json") );
           send( data ); exp->state = 0; return (*this);
      }
 
      express_https_t& send( string_t msg ) { 
-          if( exp->state == 0 ){ return (*this); }
+          if( exp->state <= 0 ){ return (*this); }
           header( "content-length", string::to_string(msg.size()) );
           write_header( exp->status, exp->_headers );
           write( msg ); close(); exp->state = 0;
@@ -82,48 +92,48 @@ public: query_t params;
      }
 
      express_https_t& cookie( string_t name, string_t value ) {
-          if( exp->state == 0 ){ return (*this); } 
+          if( exp->state <= 0 ){ return (*this); } 
               exp->_cookies[ name ] = value;
           header( "Set-Cookie", cookie::format( exp->_cookies ) );
           return (*this);
      }
 
      express_https_t& header( string_t name, string_t value ) {
-          if( exp->state == 0 )    { return (*this); }
+          if( exp->state <= 0 )    { return (*this); }
           exp->_headers[name]=value; return (*this);
      }
 
      express_https_t& render( string_t msg ) {
-          if( exp->state == 0 )    { return (*this); }
+          if( exp->state <= 0 )    { return (*this); }
           header( "Content-Type", path::mimetype(".html") );
           send( msg ); return (*this);
      }
 
      express_https_t& redirect( uint value, string_t url ) {
-          if( exp->state == 0 ){ return (*this); }
+          if( exp->state <= 0 ){ return (*this); }
           header( "location",url );status( value ); 
           send(); exp->state = 0; return (*this);
      }
 
      express_https_t& clear_cookies() {
-          if( exp->state == 0 ){ return (*this); } 
+          if( exp->state <= 0 ){ return (*this); } 
           header( "Clear-Site-Data", "cookies" );
           return (*this);
      }
 
      express_https_t& status( uint value ) {
-          if( exp->state == 0 ){ return (*this); }
+          if( exp->state <= 0 ){ return (*this); }
               exp->status=value; return (*this);
      }
 
      express_https_t& send() {
-          if( exp->state == 0 ){ return (*this); }
+          if( exp->state <= 0 ){ return (*this); }
           write_header(exp->status,exp->_headers); 
           exp->state = 0; return (*this);
      }
 
      express_https_t& redirect( string_t url ) {
-          if( exp->state == 0 ){ return (*this); }
+          if( exp->state <= 0 ){ return (*this); }
           return redirect( 301, url );
      }
 
@@ -193,249 +203,250 @@ protected:
 
 public:
 
-    express_tls_t( ssl_t* ssl, agent_t* agent ) noexcept : obj( new NODE() )
-                 { obj->agent = agent; obj->ssl = ssl; }
+     express_tls_t( ssl_t* ssl, agent_t* agent=nullptr ) noexcept : obj( new NODE() )
+                  { obj->agent = agent; obj->ssl = ssl; }
 
-    express_tls_t( ssl_t* ssl ) noexcept : obj( new NODE() )
-                 { obj->ssl = ssl; }
+     express_tls_t() noexcept : obj( new NODE() ) {}
 
-    express_tls_t() noexcept : obj( new NODE() ) {}
+    ~express_tls_t() noexcept {}
 
-   ~express_tls_t() noexcept {}
+     /*.........................................................................*/
 
-    /*.........................................................................*/
+     void     set_path( string_t path ) const noexcept { obj->path = path; }
 
-    void     set_path( string_t path ) const noexcept { obj->path = path; }
+     string_t get_path() const noexcept { return obj->path; }
 
-    string_t get_path() const noexcept { return obj->path; }
+     /*.........................................................................*/
 
-    /*.........................................................................*/
+     bool is_closed() const noexcept { return obj->fd.is_closed(); }
 
-    bool is_closed() const noexcept { return obj->fd.is_closed(); }
+     void close() const noexcept { obj->fd.close(); }
 
-    void close() const noexcept { obj->fd.close(); }
+     /*.........................................................................*/
 
-    /*.........................................................................*/
+     tls_t& get_fd(void) const noexcept { return obj->fd; }  
 
-    const express_tls_t& USE( string_t _path, express_tls_t cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         cb.set_path( path::join( obj->path, _path ) );
-         item.path       = nullptr;
-         item.method     = nullptr;
-         item.router     = optional_t<any_t>(cb);
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& USE( express_tls_t cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         cb.set_path( path::join( obj->path, "" ) );
-         item.path       = nullptr;
-         item.method     = nullptr;
-         item.router     = optional_t<any_t>(cb);
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& USE( string_t _path, express_tls_t cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          cb.set_path( path::join( obj->path, _path ) );
+          item.path       = nullptr;
+          item.method     = nullptr;
+          item.router     = optional_t<any_t>(cb);
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& USE( express_tls_t cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          cb.set_path( path::join( obj->path, "" ) );
+          item.path       = nullptr;
+          item.method     = nullptr;
+          item.router     = optional_t<any_t>(cb);
+          obj->list.push( item ); return (*this);
+     }
 
-    const express_tls_t& USE( string_t _path, MIDDL cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.middleware = optional_t<MIDDL>(cb);
-         item.method     = nullptr;
-         item.path       = _path;
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& USE( MIDDL cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.middleware = optional_t<MIDDL>(cb);
-         item.method     = nullptr;
-         item.path       = nullptr;
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& USE( string_t _path, MIDDL cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.middleware = optional_t<MIDDL>(cb);
+          item.method     = nullptr;
+          item.path       = _path;
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& USE( MIDDL cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.middleware = optional_t<MIDDL>(cb);
+          item.method     = nullptr;
+          item.path       = nullptr;
+          obj->list.push( item ); return (*this);
+     }
 
-    const express_tls_t& ALL( string_t _path, CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = nullptr;
-         item.path     = _path;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& ALL( CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.path     = nullptr;
-         item.method   = nullptr;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& ALL( string_t _path, CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = nullptr;
+          item.path     = _path;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& ALL( CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.path     = nullptr;
+          item.method   = nullptr;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    const express_tls_t& GET( string_t _path, CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "GET";
-         item.path     = _path;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& GET( CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.path     = nullptr;
-         item.method   = "GET";
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& GET( string_t _path, CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "GET";
+          item.path     = _path;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& GET( CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.path     = nullptr;
+          item.method   = "GET";
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    const express_tls_t& POST( string_t _path, CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "POST";
-         item.path     = _path;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& POST( CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.path     = nullptr;
-         item.method   = "POST";
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& POST( string_t _path, CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "POST";
+          item.path     = _path;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& POST( CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.path     = nullptr;
+          item.method   = "POST";
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    const express_tls_t& DELETE( string_t _path, CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "DELETE";
-         item.path     = _path;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& DELETE( CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "DELETE";
-         item.path     = nullptr;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& DELETE( string_t _path, CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "DELETE";
+          item.path     = _path;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& DELETE( CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "DELETE";
+          item.path     = nullptr;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    const express_tls_t& PUT( string_t _path, CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "PUT";
-         item.path     = _path;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& PUT( CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.path     = nullptr;
-         item.method   = "PUT";
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& PUT( string_t _path, CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "PUT";
+          item.path     = _path;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& PUT( CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.path     = nullptr;
+          item.method   = "PUT";
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    const express_tls_t& HEAD( string_t _path, CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "HEAD";
-         item.path     = _path;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& HEAD( CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.path     = nullptr;
-         item.method   = "HEAD";
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& HEAD( string_t _path, CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "HEAD";
+          item.path     = _path;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& HEAD( CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.path     = nullptr;
+          item.method   = "HEAD";
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    const express_tls_t& TRACE( string_t _path, CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "TRACE";
-         item.path     = _path;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& TRACE( CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.path     = nullptr;
-         item.method   = "TRACE";
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& TRACE( string_t _path, CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "TRACE";
+          item.path     = _path;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& TRACE( CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.path     = nullptr;
+          item.method   = "TRACE";
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    const express_tls_t& PATCH( string_t _path, CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "PATCH";
-         item.path     = _path;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& PATCH( CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.path     = nullptr;
-         item.method   = "PATCH";
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& PATCH( string_t _path, CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "PATCH";
+          item.path     = _path;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& PATCH( CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.path     = nullptr;
+          item.method   = "PATCH";
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    const express_tls_t& OPTIONS( string_t _path, CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "OPTIONS";
-         item.path     = _path;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& OPTIONS( CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "OPTIONS";
-         item.path     = nullptr;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& OPTIONS( string_t _path, CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "OPTIONS";
+          item.path     = _path;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& OPTIONS( CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "OPTIONS";
+          item.path     = nullptr;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    const express_tls_t& CONNECT( string_t _path, CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "CONNECT";
-         item.path     = _path;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     /*.........................................................................*/
 
-    const express_tls_t& CONNECT( CALBK cb ) const noexcept {
-         express_item_t item; memset( &item, sizeof(item), 0 );
-         item.method   = "CONNECT";
-         item.path     = nullptr;
-         item.callback = cb;
-         obj->list.push( item ); return (*this);
-    }
+     const express_tls_t& CONNECT( string_t _path, CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "CONNECT";
+          item.path     = _path;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    /*.........................................................................*/
+     const express_tls_t& CONNECT( CALBK cb ) const noexcept {
+          express_item_t item; memset( &item, sizeof(item), 0 );
+          item.method   = "CONNECT";
+          item.path     = nullptr;
+          item.callback = cb;
+          obj->list.push( item ); return (*this);
+     }
 
-    template<class... T>void listen( T... args ) const {
+     /*.........................................................................*/
+
+     template<class... T>void listen( T... args ) const {
           auto self = type::bind( this );
 
           function_t<void,https_t> cb = [=]( https_t cli ){
@@ -444,10 +455,9 @@ public:
           };
 
           if( obj->ssl == nullptr ){ process::error("SSL not found"); }
-
-          obj->fd=https::server( cb, obj->ssl, obj->agent );
-          obj->fd.listen( args... );
-    }
+              obj->fd=https::server( cb, obj->ssl, obj->agent );
+              obj->fd.listen( args... );
+     }
 
 };}
 
@@ -463,12 +473,14 @@ namespace nodepp { namespace express { namespace https {
 
           app.GET([=]( express_https_t cli ){
 
+               if( !cli.is_express_available() ){ return; }
+
                if( regex::match_all( cli.path, "/" ).size() == 1 )
                  { cli.path = path::join( "/", base, cli.path ); }
 
                string_t pth = regex::replace( cli.path, "/[^/]+", base ); 
                string_t dir = pth=="/" ? path::join( base,"index" ): pth;
-               if ( dir[dir.last()] == '/' ){ dir += "index.html"; }
+               if( dir[dir.last()] == '/' ){ dir += "index.html"; }
 
                if( fs::exists_file(dir+".html") == true ){ dir += ".html"; }
                if( fs::exists_file(dir) == false || dir == base ){
