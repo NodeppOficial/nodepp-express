@@ -46,15 +46,17 @@ protected:
 
 public: query_t params;
 
-     express_http_t ( http_t& cli ) noexcept : http_t( cli ), exp( new NODE() ) {}
+     express_http_t ( http_t& cli ) noexcept : http_t( cli ), exp( new NODE() ) { exp->state = 1; }
 
-    ~express_http_t () noexcept { if( exp.count() > 1 ){ return; } free(); }
+    ~express_http_t () noexcept { if( exp.count() > 1 ){ return; } free(); exp->state = 0; }
 
-     express_http_t () noexcept : exp( new NODE() ) { obj->state = 0; } 
+     express_http_t () noexcept : exp( new NODE() ) { exp->state = 0; } 
 
     /*.........................................................................*/
 
     bool is_express_available() const noexcept { return exp->state > 0; }
+
+    bool is_express_closed() const noexcept { return exp->state <= 0; }
 
     /*.........................................................................*/
 
@@ -175,7 +177,8 @@ protected:
      }
 
      void execute( express_item_t& data, express_http_t& cli, function_t<void>& next ) const noexcept {
-            if( data.middleware.has_value() ){ data.middleware.value()( cli, next ); }
+            if( cli.is_express_closed()     ){ next(); }   
+          elif( data.middleware.has_value() ){ data.middleware.value()( cli, next ); }
           elif( data.callback.has_value()   ){ data.callback.value()( cli ); next(); }
           elif( data.router.has_value()     ){ 
                 auto self = type::bind( data.router.value().as<express_tcp_t>() );
@@ -460,8 +463,6 @@ namespace nodepp { namespace express { namespace http {
      express_tcp_t file( string_t base ) { express_tcp_t app;
 
           app.GET([=]( express_http_t cli ){
-
-               if( !cli.is_express_available() ){ return; }
 
                if( regex::match_all( cli.path, "/" ).size() == 1 )
                  { cli.path = path::join( "/", base, cli.path ); }
