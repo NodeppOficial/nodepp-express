@@ -157,13 +157,14 @@ protected:
      };   ptr_t<NODE> obj;
 
      bool path_match( express_http_t& cli, string_t base, string_t path ) const noexcept {
-          string_t pathname = path == nullptr ? base : path::join( base, path );
+          string_t pathname = path.empty() ? base : path::join( base, path );
 
           array_t<string_t> _path[2] = {
                string::split( cli.path, '/' ), 
                string::split( pathname, '/' )
           };
 
+          if( cli.path == pathname || ( base.empty() && cli.path == path ) ){ return true; }
           if( _path[0].size() != _path[1].size() ){ return false; }
 
           for ( ulong x=0; x<_path[0].size(); x++ ){ if( _path[1][x]==nullptr ){ return false; }
@@ -177,7 +178,7 @@ protected:
      }
 
      void execute( express_item_t& data, express_http_t& cli, function_t<void>& next ) const noexcept {
-            if( cli.is_express_closed()     ){ next(); }   
+            if( cli.is_express_closed()     ){ next(); }
           elif( data.middleware.has_value() ){ data.middleware.value()( cli, next ); }
           elif( data.callback.has_value()   ){ data.callback.value()( cli ); next(); }
           elif( data.router.has_value()     ){ 
@@ -188,9 +189,9 @@ protected:
 
      template<class T> void run( T& self, express_http_t& cli ) const noexcept {
           auto n = self->obj->list.first(); function_t<void> next = [&](){ n = n->next; };
-          while( n!=nullptr ){ if( !cli.is_available() ){ break; } 
+          while( n!=nullptr ){ if( !cli.is_available() ){ break; }
                if(( n->data.path == nullptr && regex::test( cli.path, self->obj->path )) 
-               || ( n->data.path == nullptr && self->obj->path == nullptr) 
+               || ( n->data.path == nullptr && self->obj->path == nullptr ) 
                || self->path_match( cli, self->obj->path, n->data.path )){
                if( n->data.method== nullptr || n->data.method== cli.method )
                  { self->execute( n->data, cli, next ); } else { next(); }
