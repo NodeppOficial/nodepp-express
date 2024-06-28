@@ -164,6 +164,7 @@ protected:
                string::split( pathname, '/' )
           };
 
+          if( cli.path == pathname || ( base.empty() && cli.path == path ) ){ return true; }
           if( _path[0].size() != _path[1].size() ){ return false; }
 
           for ( ulong x=0; x<_path[0].size(); x++ ){ if( _path[1][x]==nullptr ){ return false; }
