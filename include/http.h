@@ -114,7 +114,7 @@ public: query_t params;
 
      express_http_t& clear_cookies() {
           if( exp->state == 0 ){ return (*this); } 
-          header( "Clear-Site-Data", "cookies" );
+          header( "Clear-Site-Data", "\"cookies\"" );
           return (*this);
      }
 
@@ -131,7 +131,7 @@ public: query_t params;
 
      express_http_t& redirect( string_t url ) {
           if( exp->state == 0 ){ return (*this); }
-          return redirect( 301, url );
+          return redirect( 302, url );
      }
 
 };}
@@ -461,15 +461,17 @@ namespace nodepp { namespace express { namespace http {
         return express_tcp_t( args... ); 
      }
 
-     express_tcp_t file( string_t base ) { express_tcp_t app;
+     express_tcp_t file( string_t base ) { 
+          
+          express_tcp_t app;
 
           app.GET([=]( express_http_t cli ){
 
-               if( regex::match_all( cli.path, "/" ).size() == 1 )
-                 { cli.path = path::join( "/", base, cli.path ); }
+               auto pth = regex::replace( cli.path, app.get_path(), "/" );
+               string_t dir = pth.empty() ? path::join( base, "" ) :
+                                            path::join( base,pth ) ;
 
-               string_t pth = regex::replace( cli.path, "/[^/]+", base ); 
-               string_t dir = pth=="/" ? path::join( base,"index" ): pth;
+               if ( dir.empty() ){ dir = path::join( base, "index.html" ); }
                if ( dir[dir.last()] == '/' ){ dir += "index.html"; }
 
                if( fs::exists_file(dir+".html") == true ){ dir += ".html"; }

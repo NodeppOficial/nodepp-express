@@ -113,7 +113,7 @@ public: query_t params;
 
      express_https_t& clear_cookies() {
           if( exp->state == 0 ){ return (*this); } 
-          header( "Clear-Site-Data", "cookies" );
+          header( "Clear-Site-Data", "\"cookies\"" );
           return (*this);
      }
 
@@ -130,7 +130,7 @@ public: query_t params;
 
      express_https_t& redirect( string_t url ) {
           if( exp->state == 0 ){ return (*this); }
-          return redirect( 301, url );
+          return redirect( 302, url );
      }
 
 };}
@@ -157,7 +157,7 @@ protected:
      };   ptr_t<NODE> obj;
 
      bool path_match( express_https_t& cli, string_t base, string_t path ) const noexcept {
-          string_t pathname = path == nullptr ? base : path::join( base, path );
+          string_t pathname = path.empty() ? base : path::join( base, path );
 
           array_t<string_t> _path[2] = {
                string::split( cli.path, '/' ), 
@@ -471,11 +471,11 @@ namespace nodepp { namespace express { namespace https {
 
           app.GET([=]( express_https_t cli ){
 
-               if( regex::match_all( cli.path, "/" ).size() == 1 )
-                 { cli.path = path::join( "/", base, cli.path ); }
+               auto pth = regex::replace( cli.path, app.get_path(), "/" );
+               string_t dir = pth.empty() ? path::join( base, "/" ) :
+                                            path::join( base, pth ) ;
 
-               string_t pth = regex::replace( cli.path, "/[^/]+", base ); 
-               string_t dir = pth=="/" ? path::join( base,"index" ): pth;
+               if ( dir.empty() ){ dir = path::join( base, "index.html" ); }
                if ( dir[dir.last()] == '/' ){ dir += "index.html"; }
 
                if( fs::exists_file(dir+".html") == true ){ dir += ".html"; }
