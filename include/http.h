@@ -118,6 +118,13 @@ public: query_t params;
           return (*this);
      }
 
+     template< class T >
+     express_http_t& sendStream( T readableStream ) {
+          if( exp->state == 0 ){ return (*this); } 
+              header( "Content-Length", string::to_string( readableStream.size() ) );
+              send(); stream::pipe( readableStream ); exp->state = 0; return (*this);
+     }
+
      express_http_t& status( uint value ) {
           if( exp->state == 0 ){ return (*this); }
               exp->status=value; return (*this);
@@ -489,9 +496,10 @@ namespace nodepp { namespace express { namespace http {
                if ( cli.headers["Accept-Encoding"].empty() == false ){
                     cli.header( "Content-Encoding", "gzip" );
                }    cli.header( "Content-Length", string::to_string(str.size()) );
-                    cli.header( "Cache-Control", "public, max-age=3600" );
                     cli.header( "Content-Type",   path::mimetype(dir) );
-                    cli.send();
+               if ( !regex::test(path::mimetype(dir),"text",true) ){
+                    cli.header( "Cache-Control", "public, max-age=86400" );
+               }    cli.send();
 
                     if( !regex::test(path::mimetype(dir),"audio|video",true) ) {
                     if(  cli.headers["Accept-Encoding"].empty() == false ){
@@ -506,7 +514,85 @@ namespace nodepp { namespace express { namespace http {
 
                     cli.header( "Content-Range", string::format("bytes %lu-%lu/%lu",rang[0],rang[1],str.size()) );
                     cli.header( "Content-Type",  path::mimetype(dir) ); cli.header( "Accept-Range", "bytes" ); 
+                    cli.header( "Cache-Control", "public, max-age=86400" );
                     cli.status(206); cli.send();
+
+                    str.set_range( rang[0], rang[1] ); stream::pipe( str, cli );
+
+               }
+          });
+
+          return app;
+     }
+
+    /*.........................................................................*/
+
+     express_tcp_t ssr( string_t base ) { 
+               
+          express_tcp_t app;
+
+     /*.........................................................................*/
+
+          function_t<string_t,string_t&> _ssr_ = []( string_t& data ){
+               while( regex::test( data, "<°[^°]+°>" ) ){
+                    auto pttr = regex::match( data, "<°[^°]+°>" );
+                    auto name = regex::match( pttr, "[^<°> \n\t]+" );
+
+                    if( fs::exists_file( name ) ){ 
+                        auto str = stream::await( fs::readable( name ) );
+                        data = regex::replace_all( data, pttr, str );
+                    } else {
+                        data = regex::replace_all( data, pttr, "file does not exists" );
+                    }
+                    
+               }    return data;
+          };
+         
+     /*.........................................................................*/
+
+          app.GET([=]( express_http_t cli ){
+
+               auto pth = regex::replace( cli.path, app.get_path(), "/" );
+               string_t dir = pth.empty() ? path::join( base, "" ) :
+                                            path::join( base,pth ) ;
+
+               if ( dir.empty() ){ dir = path::join( base, "index.html" ); }
+               if ( dir[dir.last()] == '/' ){ dir += "index.html"; }
+
+               if( fs::exists_file(dir+".html") == true ){ dir += ".html"; }
+               if( fs::exists_file(dir) == false || dir == base ){
+               if( fs::exists_file( path::join( base, "404.html" ) )){
+                    dir = path::join( base, "404.html" );
+               } else { 
+                    cli.status(404).send("Oops 404 Error"); 
+                    return; 
+               }}
+
+               auto str = fs::readable( dir );
+
+               if ( cli.headers["Range"].empty() == true ){
+                    cli.header( "Content-Type",   path::mimetype(dir) );
+
+                    if( regex::test(path::mimetype(dir),"audio|video",true) ) { return; }
+                    if( regex::test(path::mimetype(dir),"text",true) && str.size() < CHUNK_SIZE ){
+                         auto dta = stream::await( str ); while( regex::test( dta, "<°[^°]+°>" ) )
+                            { dta = _ssr_(dta); } cli.send( _ssr_( dta ) );
+                    } else { 
+                         cli.header( "Content-Length", string::to_string(str.size()) );
+                         cli.header( "Cache-Control", "public, max-age=86400" );
+                         cli.send(); stream::pipe( str, cli );
+                    }
+
+               } else {
+
+                    array_t<string_t> range = regex::match_all(cli.headers["Range"],"\\d+",true);
+                    ulong rang[2]; rang[0] = string::to_ulong( range[0] );
+                          rang[1]= min(rang[0]+CHUNK_MB(10),str.size()-1);
+
+                    cli.header( "Content-Range", string::format("bytes %lu-%lu/%lu",rang[0],rang[1],str.size()) );
+                    cli.header( "Content-Type",  path::mimetype(dir) ); cli.header( "Accept-Range", "bytes" ); 
+                    cli.header( "Cache-Control", "public, max-age=86400" );
+                    cli.status(206).send();
 
                     str.set_range( rang[0], rang[1] ); stream::pipe( str, cli );
 
