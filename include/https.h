@@ -197,7 +197,7 @@ protected:
      template<class T> void run( T& self, express_https_t& cli ) const noexcept {
           auto n = self->obj->list.first(); function_t<void> next = [&](){ n = n->next; };
           while( n!=nullptr ){ if( !cli.is_available() ){ break; } 
-               if(( n->data.path == nullptr && regex::test( cli.path, self->obj->path )) 
+               if(( n->data.path == nullptr && regex::test( cli.path, "^"+self->obj->path )) 
                || ( n->data.path == nullptr && self->obj->path == nullptr) 
                || self->path_match( cli, self->obj->path, n->data.path )){
                if( n->data.method== nullptr || n->data.method== cli.method )
