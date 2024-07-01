@@ -31,7 +31,6 @@
 #include <nodepp/url.h>
 #include <nodepp/fs.h>
 
-
 /*────────────────────────────────────────────────────────────────────────────*/
 
 namespace nodepp { class express_http_t : public http_t { 
@@ -41,7 +40,7 @@ protected:
         header_t _headers;
         cookie_t _cookies;
         uint  status= 200;
-        char  state = 1;
+        char   state= 1;
     };  ptr_t<NODE> exp;
 
 public: query_t params;
@@ -163,8 +162,18 @@ protected:
           tcp_t    fd;
      };   ptr_t<NODE> obj;
 
+     void execute( string_t path, express_item_t& data, express_http_t& cli, function_t<void>& next ) const noexcept {
+            if( cli.is_express_closed()     ){ next(); }
+          elif( data.middleware.has_value() ){ data.middleware.value()( cli, next ); }
+          elif( data.callback.has_value()   ){ data.callback.value()( cli ); next(); }
+          elif( data.router.has_value()     ){ 
+                auto self = type::bind( data.router.value().as<express_tcp_t>() );
+                     self->run( path, cli ); next();
+          }
+     }
+
      bool path_match( express_http_t& cli, string_t base, string_t path ) const noexcept {
-          string_t pathname = path.empty() ? base : path::join( base, path );
+          string_t pathname = normalize( base, path );
 
           array_t<string_t> _path[2] = {
                string::split( cli.path, '/' ), 
@@ -184,26 +193,21 @@ protected:
           return true;
      }
 
-     void execute( express_item_t& data, express_http_t& cli, function_t<void>& next ) const noexcept {
-            if( cli.is_express_closed()     ){ next(); }
-          elif( data.middleware.has_value() ){ data.middleware.value()( cli, next ); }
-          elif( data.callback.has_value()   ){ data.callback.value()( cli ); next(); }
-          elif( data.router.has_value()     ){ 
-                auto self = type::bind( data.router.value().as<express_tcp_t>() );
-                     self->run( self, cli ); next();
+     void run( string_t path, express_http_t& cli ) const noexcept {
+          auto n = obj->list.first(); function_t<void> next = [&](){ n = n->next; };
+          auto _base = normalize( path, obj->path );
+          while( n!=nullptr ){ if( !cli.is_available() ){ break; }
+               if(( n->data.path == nullptr && regex::test( cli.path, "^"+_base )) 
+               || ( n->data.path == nullptr && obj->path == nullptr ) 
+               || ( path_match( cli, _base, n->data.path )) ){
+               if ( n->data.method== nullptr || n->data.method==cli.method )
+                  { execute( _base, n->data, cli, next ); } else { next(); }
+               } else { next(); }
           }
      }
 
-     template<class T> void run( T& self, express_http_t& cli ) const noexcept {
-          auto n = self->obj->list.first(); function_t<void> next = [&](){ n = n->next; };
-          while( n!=nullptr ){ if( !cli.is_available() ){ break; }
-               if(( n->data.path == nullptr && regex::test( cli.path, "^"+self->obj->path )) 
-               || ( n->data.path == nullptr && self->obj->path == nullptr ) 
-               || self->path_match( cli, self->obj->path, n->data.path )){
-               if( n->data.method== nullptr || n->data.method== cli.method )
-                 { self->execute( n->data, cli, next ); } else { next(); }
-               } else { next(); }
-          }
+     string_t normalize( string_t base, string_t path ) const noexcept {
+          return base.empty() ? path : path.empty() ? base : path::join( base, path );
      }
 
 public:
@@ -450,8 +454,8 @@ public:
           auto self = type::bind( this );
 
           function_t<void,http_t> cb = [=]( http_t cli ){
-               express_http_t res(cli); 
-               self->run( self, res );
+               express_http_t res( cli ); 
+               self->run( nullptr, res );
           };
 
           obj->fd=http::server( cb, obj->agent );
@@ -475,8 +479,8 @@ namespace nodepp { namespace express { namespace http {
           app.GET([=]( express_http_t cli ){
 
                auto pth = regex::replace( cli.path, app.get_path(), "/" );
-               string_t dir = pth.empty() ? path::join( base, "" ) :
-                                            path::join( base,pth ) ;
+               auto dir = pth.empty() ? path::join( base, "" ) :
+                                        path::join( base,pth ) ;
 
                if ( dir.empty() ){ dir = path::join( base, "index.html" ); }
                if ( dir[dir.last()] == '/' ){ dir += "index.html"; }
@@ -514,8 +518,7 @@ namespace nodepp { namespace express { namespace http {
 
                     cli.header( "Content-Range", string::format("bytes %lu-%lu/%lu",rang[0],rang[1],str.size()) );
                     cli.header( "Content-Type",  path::mimetype(dir) ); cli.header( "Accept-Range", "bytes" ); 
-                    cli.header( "Cache-Control", "public, max-age=86400" );
-                    cli.status(206); cli.send();
+                    cli.header( "Cache-Control", "public, max-age=86400" ); cli.status(206); cli.send();
 
                     str.set_range( rang[0], rang[1] ); stream::pipe( str, cli );
 
@@ -553,8 +556,8 @@ namespace nodepp { namespace express { namespace http {
           app.GET([=]( express_http_t cli ){
 
                auto pth = regex::replace( cli.path, app.get_path(), "/" );
-               string_t dir = pth.empty() ? path::join( base, "" ) :
-                                            path::join( base,pth ) ;
+               auto dir = pth.empty() ? path::join( base, "" ) :
+                                        path::join( base,pth ) ;
 
                if ( dir.empty() ){ dir = path::join( base, "index.html" ); }
                if ( dir[dir.last()] == '/' ){ dir += "index.html"; }
@@ -591,8 +594,7 @@ namespace nodepp { namespace express { namespace http {
 
                     cli.header( "Content-Range", string::format("bytes %lu-%lu/%lu",rang[0],rang[1],str.size()) );
                     cli.header( "Content-Type",  path::mimetype(dir) ); cli.header( "Accept-Range", "bytes" ); 
-                    cli.header( "Cache-Control", "public, max-age=86400" );
-                    cli.status(206).send();
+                    cli.header( "Cache-Control", "public, max-age=86400" ); cli.status(206).send();
 
                     str.set_range( rang[0], rang[1] ); stream::pipe( str, cli );
 
