@@ -79,6 +79,13 @@ public: query_t params;
           send( data ); exp->state = 0; return (*this);
      }
 
+     template< class T >
+     express_http_t& sendStream( T readableStream ) {
+          if( exp->state == 0 ){ return (*this); } 
+          header( "Content-Length", string::to_string( readableStream.size() ) );
+          send(); stream::pipe( readableStream ); exp->state = 0; return (*this);
+     }
+
      express_http_t& send( string_t msg ) { 
           if( exp->state == 0 ){ return (*this); }
           header( "content-length", string::to_string(msg.size()) );
@@ -107,7 +114,8 @@ public: query_t params;
 
      express_http_t& redirect( uint value, string_t url ) {
           if( exp->state == 0 ){ return (*this); }
-          header( "location",url );status( value ); 
+          header( "Content-Length", string::to_string(0) );
+          header( "Location",url );status( value ); 
           send(); exp->state = 0; return (*this);
      }
 
@@ -115,13 +123,6 @@ public: query_t params;
           if( exp->state == 0 ){ return (*this); } 
           header( "Clear-Site-Data", "\"cookies\"" );
           return (*this);
-     }
-
-     template< class T >
-     express_http_t& sendStream( T readableStream ) {
-          if( exp->state == 0 ){ return (*this); } 
-              header( "Content-Length", string::to_string( readableStream.size() ) );
-              send(); stream::pipe( readableStream ); exp->state = 0; return (*this);
      }
 
      express_http_t& status( uint value ) {
@@ -577,7 +578,7 @@ namespace nodepp { namespace express { namespace http {
                     cli.header( "Content-Type",   path::mimetype(dir) );
 
                     if( regex::test(path::mimetype(dir),"audio|video",true) ) { return; }
-                    if( regex::test(path::mimetype(dir),"text",true) && str.size() < CHUNK_SIZE ){
+                    if( regex::test(path::mimetype(dir),"html",true) && str.size() < CHUNK_SIZE ){
                          auto dta = stream::await( str ); while( regex::test( dta, "<°[^°]+°>" ) )
                             { dta = _ssr_(dta); } cli.send( _ssr_( dta ) );
                     } else { 
