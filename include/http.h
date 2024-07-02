@@ -40,7 +40,7 @@ protected:
         header_t _headers;
         cookie_t _cookies;
         uint  status= 200;
-        char   state= 1;
+        int    state= 1;
     };  ptr_t<NODE> exp;
 
 public: query_t params;
@@ -79,26 +79,33 @@ public: query_t params;
           send( data ); exp->state = 0; return (*this);
      }
 
+     express_http_t& cookie( string_t name, string_t value ) {
+          if( exp->state == 0 ){ return (*this); } exp->_cookies[ name ] = value;
+          header( "Set-Cookie", cookie::format( exp->_cookies ) );
+          return (*this);
+     }
+
      template< class T >
      express_http_t& sendStream( T readableStream ) {
           if( exp->state == 0 ){ return (*this); } 
           header( "Content-Length", string::to_string( readableStream.size() ) );
-          send(); stream::pipe( readableStream ); exp->state = 0; return (*this);
+          if( headers["Accept-Encoding"].empty() == false ){
+              header( "Content-Encoding", "gzip" ); send();
+              zlib::gzip::pipe( readableStream, *this );
+          } else {
+              send(); stream::pipe( readableStream );
+          }   exp->state = 0; return (*this);
      }
 
      express_http_t& send( string_t msg ) { 
           if( exp->state == 0 ){ return (*this); }
           header( "content-length", string::to_string(msg.size()) );
-          write_header( exp->status, exp->_headers );
-          write( msg ); close(); exp->state = 0;
-          return (*this); 
-     }
-
-     express_http_t& cookie( string_t name, string_t value ) {
-          if( exp->state == 0 ){ return (*this); } 
-              exp->_cookies[ name ] = value;
-          header( "Set-Cookie", cookie::format( exp->_cookies ) );
-          return (*this);
+          if( headers["Accept-Encoding"].empty() == false ){
+              header( "Content-Encoding", "gzip" ); send();
+              write( zlib::gzip::get( msg ) ); close();
+          } else {
+              send(); write( msg ); close();
+          }   exp->state =0; return (*this); 
      }
 
      express_http_t& header( string_t name, string_t value ) {
@@ -114,8 +121,8 @@ public: query_t params;
 
      express_http_t& redirect( uint value, string_t url ) {
           if( exp->state == 0 ){ return (*this); }
-          header( "Content-Length", string::to_string(0) );
-          header( "Location",url );status( value ); 
+          header( "content-length", string::to_string(0) );
+          header( "location",url );status( value ); 
           send(); exp->state = 0; return (*this);
      }
 
@@ -490,6 +497,7 @@ namespace nodepp { namespace express { namespace http {
                if( fs::exists_file(dir) == false || dir == base ){
                if( fs::exists_file( path::join( base, "404.html" ) )){
                    dir = path::join( base, "404.html" );
+                   cli.status(404);
                } else { 
                    cli.status(404).send("Oops 404 Error"); 
                    return; 
@@ -519,9 +527,10 @@ namespace nodepp { namespace express { namespace http {
 
                     cli.header( "Content-Range", string::format("bytes %lu-%lu/%lu",rang[0],rang[1],str.size()) );
                     cli.header( "Content-Type",  path::mimetype(dir) ); cli.header( "Accept-Range", "bytes" ); 
-                    cli.header( "Cache-Control", "public, max-age=86400" ); cli.status(206); cli.send();
+                    cli.header( "Cache-Control", "public, max-age=86400" ); 
 
-                    str.set_range( rang[0], rang[1] ); stream::pipe( str, cli );
+                    str.set_range( rang[0], rang[1] ); 
+                    cli.status(206).sendStream( str );
 
                }
           });
@@ -567,6 +576,7 @@ namespace nodepp { namespace express { namespace http {
                if( fs::exists_file(dir) == false || dir == base ){
                if( fs::exists_file( path::join( base, "404.html" ) )){
                     dir = path::join( base, "404.html" );
+                    cli.status(404);
                } else { 
                     cli.status(404).send("Oops 404 Error"); 
                     return; 
@@ -575,7 +585,7 @@ namespace nodepp { namespace express { namespace http {
                auto str = fs::readable( dir );
 
                if ( cli.headers["Range"].empty() == true ){
-                    cli.header( "Content-Type",   path::mimetype(dir) );
+                    cli.header( "Content-Type", path::mimetype(dir) );
 
                     if( regex::test(path::mimetype(dir),"audio|video",true) ) { return; }
                     if( regex::test(path::mimetype(dir),"html",true) && str.size() < CHUNK_SIZE ){
@@ -584,7 +594,7 @@ namespace nodepp { namespace express { namespace http {
                     } else { 
                          cli.header( "Content-Length", string::to_string(str.size()) );
                          cli.header( "Cache-Control", "public, max-age=86400" );
-                         cli.send(); stream::pipe( str, cli );
+                         cli.sendStream( str );
                     }
 
                } else {
@@ -595,9 +605,10 @@ namespace nodepp { namespace express { namespace http {
 
                     cli.header( "Content-Range", string::format("bytes %lu-%lu/%lu",rang[0],rang[1],str.size()) );
                     cli.header( "Content-Type",  path::mimetype(dir) ); cli.header( "Accept-Range", "bytes" ); 
-                    cli.header( "Cache-Control", "public, max-age=86400" ); cli.status(206).send();
+                    cli.header( "Cache-Control", "public, max-age=86400" );
 
-                    str.set_range( rang[0], rang[1] ); stream::pipe( str, cli );
+                    str.set_range( rang[0], rang[1] ); 
+                    cli.status(206).sendStream( str );
 
                }
           });
