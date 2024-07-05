@@ -100,7 +100,7 @@ public: query_t params;
      express_http_t& send( string_t msg ) { 
           if( exp->state == 0 ){ return (*this); }
           header( "content-length", string::to_string(msg.size()) );
-          if( headers["Accept-Encoding"].empty() == false ){
+          if( !headers["Accept-Encoding"].empty() && msg.size()>UNBFF_SIZE ){
               header( "Content-Encoding", "gzip" ); send();
               write( zlib::gzip::get( msg ) ); close();
           } else {
@@ -188,8 +188,8 @@ protected:
                string::split( pathname, '/' )
           };
 
-          if( cli.path == pathname || ( base.empty() && cli.path == path ) ){ return true; }
-          if( _path[0].size() != _path[1].size() ){ return false; }
+          if( regex::test( cli.path, "^"+pathname ) ){ return true;  }
+          if( _path[0].size() != _path[1].size() )   { return false; }
 
           for ( ulong x=0; x<_path[0].size(); x++ ){ if( _path[1][x]==nullptr ){ return false; }
           elif( _path[1][x][0] == ':' ){ cli.params[_path[1][x].slice(1)]= _path[0][x]; }
@@ -208,7 +208,7 @@ protected:
                if(( n->data.path == nullptr && regex::test( cli.path, "^"+_base )) 
                || ( n->data.path == nullptr && obj->path == nullptr ) 
                || ( path_match( cli, _base, n->data.path )) ){
-               if ( n->data.method== nullptr || n->data.method==cli.method )
+               if ( n->data.method==nullptr || n->data.method==cli.method )
                   { execute( _base, n->data, cli, next ); } else { next(); }
                } else { next(); }
           }
@@ -512,18 +512,16 @@ namespace nodepp { namespace express { namespace http {
                     cli.header( "Content-Type",   path::mimetype(dir) );
                if ( !regex::test(path::mimetype(dir),"text",true) ){
                     cli.header( "Cache-Control", "public, max-age=86400" );
-               }    cli.send();
+               }
 
-                    if( !regex::test(path::mimetype(dir),"audio|video",true) ) {
-                    if(  cli.headers["Accept-Encoding"].empty() == false ){
-                         zlib::gzip::pipe( str, cli );
-                    } else { stream::pipe( str, cli ); }}
+               if ( !regex::test(path::mimetype(dir),"audio|video",true) ) 
+                  { cli.sendStream( str ); }
 
                } else {
 
                     array_t<string_t> range = regex::match_all(cli.headers["Range"],"\\d+",true);
                      ulong rang[2]; rang[0] = string::to_ulong( range[0] );
-                           rang[1]= min(rang[0]+CHUNK_MB(10),str.size()-1);
+                           rang[1] =min(rang[0]+CHUNK_MB(10),str.size()-1);
 
                     cli.header( "Content-Range", string::format("bytes %lu-%lu/%lu",rang[0],rang[1],str.size()) );
                     cli.header( "Content-Type",  path::mimetype(dir) ); cli.header( "Accept-Range", "bytes" ); 
@@ -569,14 +567,13 @@ namespace nodepp { namespace express { namespace http {
                auto dir = pth.empty() ? path::join( base, "" ) :
                                         path::join( base,pth ) ;
 
-               if ( dir.empty() ){ dir = path::join( base, "index.html" ); }
-               if ( dir[dir.last()] == '/' ){ dir += "index.html"; }
+               if( dir.empty() ){ dir = path::join( base, "index.html" ); }
+               if( dir[dir.last()] == '/' ){ dir += "index.html"; }
 
                if( fs::exists_file(dir+".html") == true ){ dir += ".html"; }
                if( fs::exists_file(dir) == false || dir == base ){
                if( fs::exists_file( path::join( base, "404.html" ) )){
-                    dir = path::join( base, "404.html" );
-                    cli.status(404);
+                    dir = path::join( base, "404.html" ); cli.status(404);
                } else { 
                     cli.status(404).send("Oops 404 Error"); 
                     return; 
@@ -589,8 +586,8 @@ namespace nodepp { namespace express { namespace http {
 
                     if( regex::test(path::mimetype(dir),"audio|video",true) ) { return; }
                     if( regex::test(path::mimetype(dir),"html",true) && str.size() < CHUNK_SIZE ){
-                         auto dta = stream::await( str ); while( regex::test( dta, "<°[^°]+°>" ) )
-                            { dta = _ssr_(dta); } cli.send( _ssr_( dta ) );
+                        auto dta = stream::await( str ); while( regex::test( dta, "<°[^°]+°>" ) )
+                           { dta = _ssr_(dta); } cli.send( _ssr_( dta ) );
                     } else { 
                          cli.header( "Content-Length", string::to_string(str.size()) );
                          cli.header( "Cache-Control", "public, max-age=86400" );
@@ -601,7 +598,7 @@ namespace nodepp { namespace express { namespace http {
 
                     array_t<string_t> range = regex::match_all(cli.headers["Range"],"\\d+",true);
                     ulong rang[2]; rang[0] = string::to_ulong( range[0] );
-                          rang[1]= min(rang[0]+CHUNK_MB(10),str.size()-1);
+                          rang[1] =min(rang[0]+CHUNK_MB(10),str.size()-1);
 
                     cli.header( "Content-Range", string::format("bytes %lu-%lu/%lu",rang[0],rang[1],str.size()) );
                     cli.header( "Content-Type",  path::mimetype(dir) ); cli.header( "Accept-Range", "bytes" ); 
