@@ -192,7 +192,7 @@ protected:
           if( _path[0].size() != _path[1].size() )   { return false; }
 
           for ( ulong x=0; x<_path[0].size(); x++ ){ if( _path[1][x]==nullptr ){ return false; }
-          elif( _path[1][x][0] == ':' ){ cli.params[_path[1][x].slice(1)]= _path[0][x]; }
+          elif( _path[1][x][0] == ':' ){ cli.params[_path[1][x].slice(1)]=url::normalize(_path[0][x]); }
           elif( _path[1][x]    == "*"         ){ continue;     }
           elif( _path[1][x]    == nullptr     ){ continue;     }
           elif( _path[1][x]    != _path[0][x] ){ return false; }
