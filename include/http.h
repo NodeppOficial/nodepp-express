@@ -469,7 +469,8 @@ public:
           };
 
           obj->fd=http::server( cb, obj->agent );
-          obj->fd.listen(args...); return obj->fd;
+          obj->fd.listen( args... );
+          return obj->fd;
     }
 
 };}
