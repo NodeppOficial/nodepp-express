@@ -236,6 +236,8 @@ public:
 
     bool is_closed() const noexcept { return obj->fd.is_closed(); }
 
+    tcp_t get_fd() const noexcept { return obj->fd; }
+
     void close() const noexcept { obj->fd.close(); }
 
     /*.........................................................................*/
@@ -458,7 +460,7 @@ public:
 
     /*.........................................................................*/
 
-    template<class... T>void listen( T... args ) const noexcept {
+    template<class... T> tcp_t& listen( T... args ) const noexcept {
           auto self = type::bind( this );
 
           function_t<void,http_t> cb = [=]( http_t cli ){
@@ -467,7 +469,7 @@ public:
           };
 
           obj->fd=http::server( cb, obj->agent );
-          obj->fd.listen( args... );
+          obj->fd.listen(args...); return obj->fd;
     }
 
 };}
