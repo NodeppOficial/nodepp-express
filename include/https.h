@@ -241,6 +241,8 @@ public:
 
     bool is_closed() const noexcept { return obj->fd.is_closed(); }
 
+    tls_t get_fd() const noexcept { return obj->fd; }
+
     void close() const noexcept { obj->fd.close(); }
 
     /*.........................................................................*/
@@ -463,7 +465,7 @@ public:
 
     /*.........................................................................*/
 
-    template<class... T>void listen( T... args ) const {
+    template<class... T> tls_t& listen( T... args ) const {
           auto self = type::bind( this );
 
           function_t<void,https_t> cb = [=]( https_t cli ){
@@ -474,7 +476,7 @@ public:
           if( obj->ssl == nullptr ){ process::error("SSL not found"); }
 
           obj->fd=https::server( cb, obj->ssl, obj->agent );
-          obj->fd.listen( args... );
+          obj->fd.listen( args... ); return obj->fd;
     }
 
 };}
