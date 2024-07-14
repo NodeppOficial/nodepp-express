@@ -496,7 +496,7 @@ namespace nodepp { namespace express { namespace https {
           app.ALL([=]( express_https_t cli ){
 
                auto pth = regex::replace( cli.path, app.get_path(), "/" );
-                    pth = regex::replace_all( pth, "[.]+/", "/" );
+                    pth = regex::replace_all( pth, "\\.[.]+/", "" );
 
                auto dir = pth.empty() ? path::join( base, "" ) :
                                         path::join( base,pth ) ;
@@ -576,7 +576,7 @@ namespace nodepp { namespace express { namespace https {
           app.ALL([=]( express_https_t cli ){
 
                auto pth = regex::replace( cli.path, app.get_path(), "/" );
-                    pth = regex::replace_all( pth, "[.]+/", "/" );
+                    pth = regex::replace_all( pth, "\\.[.]+/", "" );
 
                auto dir = pth.empty() ? path::join( base, "" ) :
                                         path::join( base,pth ) ;
