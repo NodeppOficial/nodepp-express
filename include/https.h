@@ -493,7 +493,7 @@ namespace nodepp { namespace express { namespace https {
           
           express_tls_t app;
 
-          app.GET([=]( express_https_t cli ){
+          app.ALL([=]( express_https_t cli ){
 
                auto pth = regex::replace( cli.path, app.get_path(), "/" );
                     pth = regex::replace_all( pth, "[.]+/", "/" );
@@ -573,7 +573,7 @@ namespace nodepp { namespace express { namespace https {
          
      /*.........................................................................*/
 
-          app.GET([=]( express_https_t cli ){
+          app.ALL([=]( express_https_t cli ){
 
                auto pth = regex::replace( cli.path, app.get_path(), "/" );
                     pth = regex::replace_all( pth, "[.]+/", "/" );
