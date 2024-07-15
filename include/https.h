@@ -99,7 +99,7 @@ public: query_t params;
 
      express_https_t& send( string_t msg ) { 
           if( exp->state == 0 ){ return (*this); }
-          header( "content-length", string::to_string(msg.size()) );
+          header( "Content-Length", string::to_string(msg.size()) );
           if( regex::test( headers["Accept-Encoding"], "gzip" ) && msg.size()>UNBFF_SIZE ){
               header( "Content-Encoding", "gzip" ); send();
               write( zlib::gzip::get( msg ) ); close(); 
@@ -604,9 +604,8 @@ namespace nodepp { namespace express { namespace https {
 
                     if( regex::test(path::mimetype(dir),"audio|video",true) ) { cli.send(); return; }
                     if( regex::test(path::mimetype(dir),"html",true) && str.size() < CHUNK_SIZE ){
-                        cli.send();
                         auto dta = stream::await( str ); while( regex::test( dta, "<°[^°]+°>" ) )
-                           { dta = _ssr_(dta); } cli.write( _ssr_( dta ) );
+                           { dta = _ssr_(dta); } cli.send( _ssr_( dta ) );
                     } else {
                          cli.header( "Content-Length", string::to_string(str.size()) );
                          cli.header( "Cache-Control", "public, max-age=86400" );
