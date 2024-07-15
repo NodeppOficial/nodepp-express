@@ -148,6 +148,11 @@ public: query_t params;
           return redirect( 302, url );
      }
 
+     express_https_t& wait() {
+          if( exp->state == 0 ){ return (*this); }
+          stream::pipe( *this ); return (*this);
+     }
+
 };}
 
 /*────────────────────────────────────────────────────────────────────────────*/
@@ -599,8 +604,9 @@ namespace nodepp { namespace express { namespace https {
 
                     if( regex::test(path::mimetype(dir),"audio|video",true) ) { cli.send(); return; }
                     if( regex::test(path::mimetype(dir),"html",true) && str.size() < CHUNK_SIZE ){
-                         auto dta = stream::await( str ); while( regex::test( dta, "<°[^°]+°>" ) )
-                            { dta = _ssr_(dta); } cli.send( _ssr_( dta ) );
+                        cli.send();
+                        auto dta = stream::await( str ); while( regex::test( dta, "<°[^°]+°>" ) )
+                           { dta = _ssr_(dta); } cli.write( _ssr_( dta ) );
                     } else {
                          cli.header( "Content-Length", string::to_string(str.size()) );
                          cli.header( "Cache-Control", "public, max-age=86400" );
