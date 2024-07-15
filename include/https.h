@@ -527,7 +527,7 @@ namespace nodepp { namespace express { namespace https {
                }    cli.header( "Content-Length", string::to_string(str.size()) );
                     cli.header( "Content-Type",   path::mimetype(dir) );
                if ( !regex::test(path::mimetype(dir),"text",true) ){
-                    cli.header( "Cache-Control", "public, max-age=86400" );
+                    cli.header( "Cache-Control", "public, max-age=604800" );
                }
 
                if ( !regex::test(path::mimetype(dir),"audio|video",true) ) 
@@ -542,7 +542,7 @@ namespace nodepp { namespace express { namespace https {
 
                     cli.header( "Content-Range", string::format("bytes %lu-%lu/%lu",rang[0],rang[1],str.size()) );
                     cli.header( "Content-Type",  path::mimetype(dir) ); cli.header( "Accept-Range", "bytes" );
-                    cli.header( "Cache-Control", "public, max-age=86400" ); 
+                    cli.header( "Cache-Control", "public, max-age=604800" ); 
 
                     str.set_range( rang[0], rang[2] ); 
                     cli.status(206).sendStream( str );
@@ -608,7 +608,7 @@ namespace nodepp { namespace express { namespace https {
                            { dta = _ssr_(dta); } cli.send( _ssr_( dta ) );
                     } else {
                          cli.header( "Content-Length", string::to_string(str.size()) );
-                         cli.header( "Cache-Control", "public, max-age=86400" );
+                         cli.header( "Cache-Control", "public, max-age=604800" );
                          cli.sendStream( str );
                     }
 
@@ -621,7 +621,7 @@ namespace nodepp { namespace express { namespace https {
 
                     cli.header( "Content-Range", string::format("bytes %lu-%lu/%lu",rang[0],rang[1],str.size()) );
                     cli.header( "Content-Type",  path::mimetype(dir) ); cli.header( "Accept-Range", "bytes" ); 
-                    cli.header( "Cache-Control", "public, max-age=86400" );
+                    cli.header( "Cache-Control", "public, max-age=604800" );
 
                     str.set_range( rang[0], rang[2] ); 
                     cli.status(206).sendStream( str );
