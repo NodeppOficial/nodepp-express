@@ -88,7 +88,6 @@ public: query_t params;
      template< class T >
      express_http_t& sendStream( T readableStream ) {
           if( exp->state == 0 ){ return (*this); }
-          header( "Content-Length", string::to_string( readableStream.size() ) );
           if( regex::test( headers["Accept-Encoding"], "gzip" ) ){
               header( "Content-Encoding", "gzip" ); send();
               zlib::gzip::pipe( readableStream, *this );
@@ -146,11 +145,6 @@ public: query_t params;
      express_http_t& redirect( string_t url ) {
           if( exp->state == 0 ){ return (*this); }
           return redirect( 302, url );
-     }
-
-     express_http_t& wait() {
-          if( exp->state == 0 ){ return (*this); }
-          stream::pipe( *this ); return (*this);
      }
 
 };}
@@ -465,7 +459,8 @@ public:
 
     /*.........................................................................*/
 
-    template<class... T> tcp_t& listen( T... args ) const noexcept {
+    template<class... T> 
+    tcp_t& listen( const T&... args ) const noexcept {
           auto self = type::bind( this );
 
           function_t<void,http_t> cb = [=]( http_t cli ){
@@ -515,9 +510,7 @@ namespace nodepp { namespace express { namespace http {
                auto str = fs::readable( dir );
 
                if ( cli.headers["Range"].empty() == true ){
-               if ( regex::test( cli.headers["Accept-Encoding"], "gzip" ) ){
-                    cli.header( "Content-Encoding", "gzip" );
-               }    cli.header( "Content-Length", string::to_string(str.size()) );
+                    cli.header( "Content-Length", string::to_string(str.size()) );
                     cli.header( "Content-Type",   path::mimetype(dir) );
                if ( !regex::test(path::mimetype(dir),"text",true) ){
                     cli.header( "Cache-Control", "public, max-age=604800" );
@@ -549,7 +542,7 @@ namespace nodepp { namespace express { namespace http {
     /*.........................................................................*/
 
      express_tcp_t ssr( string_t base ) { 
-               
+
           express_tcp_t app;
 
      /*.........................................................................*/
