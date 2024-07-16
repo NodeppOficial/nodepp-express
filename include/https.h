@@ -88,7 +88,6 @@ public: query_t params;
      template< class T >
      express_https_t& sendStream( T readableStream ) {
           if( exp->state == 0 ){ return (*this); }
-          header( "Content-Length", string::to_string( readableStream.size() ) );
           if( regex::test( headers["Accept-Encoding"], "gzip" ) ){
               header( "Content-Encoding", "gzip" ); send();
               zlib::gzip::pipe( readableStream, *this );
@@ -146,11 +145,6 @@ public: query_t params;
      express_https_t& redirect( string_t url ) {
           if( exp->state == 0 ){ return (*this); }
           return redirect( 302, url );
-     }
-
-     express_https_t& wait() {
-          if( exp->state == 0 ){ return (*this); }
-          stream::pipe( *this ); return (*this);
      }
 
 };}
@@ -470,7 +464,8 @@ public:
 
     /*.........................................................................*/
 
-    template<class... T> tls_t& listen( T... args ) const {
+    template<class... T> 
+    tls_t& listen( const T&... args ) const {
           auto self = type::bind( this );
 
           function_t<void,https_t> cb = [=]( https_t cli ){
@@ -522,9 +517,7 @@ namespace nodepp { namespace express { namespace https {
                auto str = fs::readable( dir );
 
                if ( cli.headers["Range"].empty() == true ){
-               if ( regex::test( cli.headers["Accept-Encoding"], "gzip" ) ){
-                    cli.header( "Content-Encoding", "gzip" );
-               }    cli.header( "Content-Length", string::to_string(str.size()) );
+                    cli.header( "Content-Length", string::to_string(str.size()) );
                     cli.header( "Content-Type",   path::mimetype(dir) );
                if ( !regex::test(path::mimetype(dir),"text",true) ){
                     cli.header( "Cache-Control", "public, max-age=604800" );
