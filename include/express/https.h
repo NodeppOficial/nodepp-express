@@ -119,7 +119,7 @@ public: query_t params;
           }   exp->state = 0; return (*this);
      }
 
-     express_http_t& header( header_t headers ) noexcept {
+     express_https_t& header( header_t headers ) noexcept {
           if( exp->state == 0 ){ return (*this); }
           forEach( item, headers.data() ){
               header( item.first, item.second );
@@ -154,7 +154,7 @@ public: query_t params;
           exp->state = 0; return (*this);
      }
 
-     express_http_t& done() noexcept {
+     express_https_t& done() noexcept {
           if( exp->state == 0 ){ return (*this); }
           exp->state = 0; return (*this);
      }
