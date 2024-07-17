@@ -47,7 +47,7 @@ public: query_t params;
 
      express_http_t ( http_t& cli ) noexcept : http_t( cli ), exp( new NODE() ) { exp->state = 1; }
 
-    ~express_http_t () noexcept { if( exp.count() > 1 ){ return; } free(); exp->state = 0; }
+    ~express_http_t () noexcept { if( exp.count() > 1 ){ return; } close(); exp->state = 0; }
 
      express_http_t () noexcept : exp( new NODE() ) { exp->state = 0; } 
 
@@ -59,44 +59,7 @@ public: query_t params;
 
     /*.........................................................................*/
 
-     express_http_t& sendFile( string_t dir ) {
-          if( exp->state == 0 ){ return (*this); } if( fs::exists_file( dir ) == false )
-            { process::error("file does not exist"); } file_t file ( dir, "r" );
-              header( "content-length", string::to_string(file.size()) );
-              header( "content-type", path::mimetype(dir) );
-          if( regex::test( headers["Accept-Encoding"], "gzip" ) ){
-              header( "Content-Encoding", "gzip" ); send();
-              zlib::gzip::pipe( file, *this );
-          } else {
-              send(); stream::pipe( file, *this );
-          }   exp->state = 0; return (*this);
-     }
-
-     express_http_t& sendJSON( object_t json ) {
-          if( exp->state == 0 ){ return (*this); } auto data = json::stringify(json);
-          header( "content-length", string::to_string(data.size()) );
-          header( "content-type", path::mimetype(".json") );
-          send( data ); exp->state = 0; return (*this);
-     }
-
-     express_http_t& cookie( string_t name, string_t value ) {
-          if( exp->state == 0 ){ return (*this); } exp->_cookies[ name ] = value;
-          header( "Set-Cookie", cookie::format( exp->_cookies ) );
-          return (*this);
-     }
-
-     template< class T >
-     express_http_t& sendStream( T readableStream ) {
-          if( exp->state == 0 ){ return (*this); }
-          if( regex::test( headers["Accept-Encoding"], "gzip" ) ){
-              header( "Content-Encoding", "gzip" ); send();
-              zlib::gzip::pipe( readableStream, *this );
-          } else { send(); 
-              stream::pipe( readableStream, *this );
-          }   exp->state = 0; return (*this);
-     }
-
-     express_http_t& send( string_t msg ) { 
+     express_http_t& send( string_t msg ) noexcept { 
           if( exp->state == 0 ){ return (*this); }
           header( "Content-Length", string::to_string(msg.size()) );
           if( regex::test( headers["Accept-Encoding"], "gzip" ) && msg.size()>UNBFF_SIZE ){
@@ -107,44 +70,93 @@ public: query_t params;
           }   exp->state =0; return (*this); 
      }
 
-     express_http_t& header( string_t name, string_t value ) {
+     express_http_t& sendFile( string_t dir ) noexcept {
+          if( exp->state == 0 ){ return (*this); } if( fs::exists_file( dir ) == false )
+            { status(404).send("file does not exist"); } file_t file ( dir, "r" );
+              header( "content-length", string::to_string(file.size()) );
+              header( "content-type", path::mimetype(dir) );
+          if( regex::test( headers["Accept-Encoding"], "gzip" ) ){
+              header( "Content-Encoding", "gzip" ); send();
+              zlib::gzip::pipe( file, *this );
+          } else {
+              send(); stream::pipe( file, *this );
+          }   exp->state = 0; return (*this);
+     }
+
+     express_http_t& sendJSON( object_t json ) noexcept {
+          if( exp->state == 0 ){ return (*this); } auto data = json::stringify(json);
+          header( "content-length", string::to_string(data.size()) );
+          header( "content-type", path::mimetype(".json") );
+          send( data ); exp->state = 0; return (*this);
+     }
+
+     express_http_t& cookie( string_t name, string_t value ) noexcept {
+          if( exp->state == 0 ){ return (*this); } exp->_cookies[ name ] = value;
+          header( "Set-Cookie", cookie::format( exp->_cookies ) );
+          return (*this);
+     }
+
+     express_http_t& header( string_t name, string_t value ) noexcept {
           if( exp->state == 0 )    { return (*this); }
           exp->_headers[name]=value; return (*this);
      }
 
-     express_http_t& render( string_t msg ) {
-          if( exp->state == 0 ){ return (*this); }
-          header( "Content-Type", path::mimetype(".html") );
-          send( msg ); return (*this);
-     }
-
-     express_http_t& redirect( uint value, string_t url ) {
+     express_http_t& redirect( uint value, string_t url ) noexcept {
           if( exp->state == 0 ){ return (*this); }
           header( "content-length", string::to_string(0) );
           header( "location",url ); status( value ); 
           send(); exp->state = 0; return (*this);
      }
 
-     express_http_t& clear_cookies() {
+     template< class T >
+     express_http_t& sendStream( T readableStream ) noexcept {
+          if( exp->state == 0 ){ return (*this); }
+          if( regex::test( headers["Accept-Encoding"], "gzip" ) ){
+              header( "Content-Encoding", "gzip" ); send();
+              zlib::gzip::pipe( readableStream, *this );
+          } else { send(); 
+              stream::pipe( readableStream, *this );
+          }   exp->state = 0; return (*this);
+     }
+
+     express_http_t& header( header_t headers ) noexcept {
+          if( exp->state == 0 ){ return (*this); }
+          forEach( item, headers.data() ){
+              header( item.first, item.second );
+          }   return (*this);
+     }
+
+     express_http_t& redirect( string_t url ) noexcept {
+          if( exp->state == 0 ){ return (*this); }
+          return redirect( 302, url );
+     }
+
+     express_http_t& render( string_t msg ) noexcept {
+          if( exp->state == 0 ){ return (*this); }
+          header( "Content-Type", path::mimetype(".html") );
+          send( msg ); return (*this);
+     }
+
+     express_http_t& status( uint value ) noexcept {
+          if( exp->state == 0 ){ return (*this); }
+              exp->status=value; return (*this);
+     }
+
+     express_http_t& clear_cookies() noexcept {
           if( exp->state == 0 ){ return (*this); } 
           header( "Clear-Site-Data", "\"cookies\"" );
           return (*this);
      }
 
-     express_http_t& status( uint value ) {
-          if( exp->state == 0 ){ return (*this); }
-              exp->status=value; return (*this);
-     }
-
-     express_http_t& send() {
+     express_http_t& send() noexcept {
           if( exp->state == 0 ){ return (*this); }
           write_header(exp->status,exp->_headers);
           exp->state = 0; return (*this);
      }
 
-     express_http_t& redirect( string_t url ) {
+     express_http_t& done() noexcept {
           if( exp->state == 0 ){ return (*this); }
-          return redirect( 302, url );
+          exp->state = 0; return (*this);
      }
 
 };}
@@ -591,7 +603,7 @@ namespace nodepp { namespace express { namespace http {
                     if( regex::test(path::mimetype(dir),"audio|video",true) ) { cli.send(); return; }
                     if( regex::test(path::mimetype(dir),"html",true) && str.size() < CHUNK_SIZE ){
                         auto dta = stream::await( str ); while( regex::test( dta, "<°[^°]+°>" ) )
-                           { dta = _ssr_(dta); } cli.send( _ssr_( dta ) );
+                           { dta = _ssr_(dta); } cli.send( dta );
                     } else { 
                          cli.header( "Content-Length", string::to_string(str.size()) );
                          cli.header( "Cache-Control", "public, max-age=604800" );
