@@ -561,6 +561,8 @@ namespace nodepp { namespace express { namespace http {
 
           function_t<string_t,string_t&> _ssr_ = []( string_t& data ){
                while( regex::test( data, "<°[^°]+°>" ) ){
+
+                    process::next();
                     auto pttr = regex::match( data, "<°[^°]+°>" );
                     auto name = regex::match( pttr, "[^<°> \n\t]+" );
 
@@ -602,8 +604,7 @@ namespace nodepp { namespace express { namespace http {
 
                     if( regex::test(path::mimetype(dir),"audio|video",true) ) { cli.send(); return; }
                     if( regex::test(path::mimetype(dir),"html",true) && str.size() < CHUNK_SIZE ){
-                        auto dta = stream::await( str ); while( regex::test( dta, "<°[^°]+°>" ) )
-                           { dta = _ssr_(dta); } cli.send( dta );
+                        auto dta = stream::await( str ); cli.send( _ssr_(dta) );
                     } else { 
                          cli.header( "Content-Length", string::to_string(str.size()) );
                          cli.header( "Cache-Control", "public, max-age=604800" );
