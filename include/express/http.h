@@ -603,7 +603,7 @@ namespace nodepp { namespace express { namespace http {
                     cli.header( "Content-Type", path::mimetype(dir) );
 
                     if( regex::test(path::mimetype(dir),"audio|video",true) ) { cli.send(); return; }
-                    if( regex::test(path::mimetype(dir),"html",true) && str.size() < UNBFF_SIZE ){
+                    if( regex::test(path::mimetype(dir),"html",true) && str.size() < CHUNK_SIZE ){
                         auto dta = stream::await( str ); cli.send( _ssr_(dta) );
                     } else { 
                          cli.header( "Content-Length", string::to_string(str.size()) );
