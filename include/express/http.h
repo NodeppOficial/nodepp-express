@@ -255,7 +255,7 @@ public:
 
     const express_tcp_t& USE( string_t _path, express_tcp_t cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
-         cb.set_path( path::join( obj->path, _path ) );
+         cb.set_path( normalize( obj->path, _path ) );
          item.path       = nullptr;
          item.method     = nullptr;
          item.router     = optional_t<any_t>(cb);
@@ -264,7 +264,7 @@ public:
 
     const express_tcp_t& USE( express_tcp_t cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
-         cb.set_path( path::join( obj->path, "" ) );
+         cb.set_path( normalize( obj->path, nullptr ) );
          item.path       = nullptr;
          item.method     = nullptr;
          item.router     = optional_t<any_t>(cb);
