@@ -90,6 +90,12 @@ public: query_t params;
           send( data ); exp->state = 0; return (*this);
      }
 
+     express_https_t& cache( ulong time ) noexcept {
+          if( exp->state == 0 ){ return (*this); }
+          header( "Cache-Control",string::format( "public, max-age=%lu",time) );
+          return (*this);
+     }
+
      express_https_t& cookie( string_t name, string_t value ) noexcept {
           if( exp->state == 0 ){ return (*this); } exp->_cookies[ name ] = value;
           header( "Set-Cookie", cookie::format( exp->_cookies ) );
