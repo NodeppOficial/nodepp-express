@@ -109,7 +109,6 @@ public: query_t params;
 
      express_http_t& redirect( uint value, string_t url ) noexcept {
           if( exp->state == 0 ){ return (*this); }
-          header( "content-length", string::to_string(0) );
           header( "location",url ); status( value ); 
           send(); exp->state = 0; return (*this);
      }
