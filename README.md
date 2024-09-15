@@ -1,15 +1,20 @@
 # NODEPP-EXPRESS
 
-A Simple ExpressJS Implementation in NodePP
+A Simple ExpressJS Implementation in [C++/NodePP]([NodePP](https://github.com/NodeppOficial/nodepp))
 
 ## Dependencies
-- **Openssl**
-    - 🪟: `pacman -S mingw-w64-ucrt-x86_64-openssl`
-    - 🐧: `sudo apt install libssl-dev`
+```bash
+# Openssl
+    - 🪟: pacman -S mingw-w64-ucrt-x86_64-openssl
+    - 🐧: sudo apt install libssl-dev
 
-- **Zlib**  
-    - 🪟: `pacman -S mingw-w64-ucrt-x86_64-zlib`
-    - 🐧: `sudo apt install zlib1g-dev`
+# Zlib
+    🪟: pacman -S mingw-w64-ucrt-x86_64-zlib
+    🐧: sudo apt install zlib1g-dev
+
+# Nodepp
+    💻: https://github.com/NodeppOficial/nodepp
+```
 
 ## Build & Run
 - 🪟: `g++ -o main main.cpp -I ./include -lz -lws2_32 -lssl -lcrypto ; ./main`
