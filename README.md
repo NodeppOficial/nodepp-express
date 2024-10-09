@@ -5,15 +5,15 @@ A Simple ExpressJS Implementation in [C++/NodePP]([NodePP](https://github.com/No
 ## Dependencies
 ```bash
 # Openssl
-    - 🪟: pacman -S mingw-w64-ucrt-x86_64-openssl
-    - 🐧: sudo apt install libssl-dev
+🪟: pacman -S mingw-w64-ucrt-x86_64-openssl
+🐧: sudo apt install libssl-dev
 
 # Zlib
-    🪟: pacman -S mingw-w64-ucrt-x86_64-zlib
-    🐧: sudo apt install zlib1g-dev
+🪟: pacman -S mingw-w64-ucrt-x86_64-zlib
+🐧: sudo apt install zlib1g-dev
 
 # Nodepp
-    💻: https://github.com/NodeppOficial/nodepp
+💻: https://github.com/NodeppOficial/nodepp
 ```
 
 ## Build & Run
