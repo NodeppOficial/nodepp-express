@@ -17,8 +17,10 @@ A Simple ExpressJS Implementation in [C++/NodePP]([NodePP](https://github.com/No
 ```
 
 ## Build & Run
-- 🪟: `g++ -o main main.cpp -I ./include -lz -lws2_32 -lssl -lcrypto ; ./main`
-- 🐧: `g++ -o main main.cpp -I ./include -lz -lssl -lcrypto ; ./main`
+```bash
+🪟: g++ -o main main.cpp -I ./include -lz -lws2_32 -lssl -lcrypto ; ./main
+🐧: g++ -o main main.cpp -I ./include -lz -lssl -lcrypto ; ./main
+```
 
 ## Usage
 

@@ -5,7 +5,7 @@ using namespace nodepp;
 
 express_tls_t adminHandler(){
 
-    ssl_t ssl ( "ssl/cert.key", "ssl/cert.crt" );
+    ssl_t ssl; // ( "ssl/cert.key", "ssl/cert.crt" );
 
     auto app = express::https::add( &ssl );
 
