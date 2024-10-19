@@ -319,6 +319,24 @@ public:
 
     /*.........................................................................*/
 
+    const express_tls_t& RAW( string_t _method, string_t _path, CALBK cb ) const noexcept {
+         express_item_t item; memset( &item, sizeof(item), 0 );
+         item.method   = _method;
+         item.path     = _path;
+         item.callback = cb;
+         obj->list.push( item ); return (*this);
+    }
+
+    const express_tls_t& RAW( string_t _method, CALBK cb ) const noexcept {
+         express_item_t item; memset( &item, sizeof(item), 0 );
+         item.path     = nullptr;
+         item.method   = _method;
+         item.callback = cb;
+         obj->list.push( item ); return (*this);
+    }
+
+    /*.........................................................................*/
+
     const express_tls_t& GET( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "GET";
