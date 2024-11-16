@@ -592,7 +592,7 @@ namespace nodepp { namespace express { namespace https {
           function_t<string_t,string_t&> _ssr_ = []( string_t& data ){
                while( regex::test( data, "<°[^°]+°>" ) ){
 
-                    process::next();
+                  //process::next();
                     auto pttr = regex::match( data, "<°[^°]+°>" );
                     auto name = regex::match( pttr, "[^<°> \n\t]+" );
 
