@@ -670,7 +670,7 @@ namespace nodepp { namespace express { namespace https {
                     } else {
                         cli.header( "Content-Length", string::to_string(str.size()) );
                         cli.header( "Cache-Control", "public, max-age=604800" );
-                        auto str = fs::readable( dir ); cli.sendStream( str );
+			cli.sendStream( str );
                     }
 
                } else {
