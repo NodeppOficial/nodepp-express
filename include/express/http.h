@@ -24,6 +24,7 @@
 #include <nodepp/optional.h>
 #include <nodepp/cookie.h>
 #include <nodepp/stream.h>
+#include <nodepp/https.h>
 #include <nodepp/http.h>
 #include <nodepp/path.h>
 #include <nodepp/json.h>
@@ -33,7 +34,6 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-
 #ifndef NODEPP_EXPRESS_GENERATOR
 #define NODEPP_EXPRESS_GENERATOR
 namespace nodepp { namespace _express_ { 
@@ -42,6 +42,7 @@ namespace nodepp { namespace _express_ {
      GENERATOR( ssr ) {
      protected:
 
+          ptr_t<bool> state = new bool(0);
           array_t<ptr_t<ulong>> match;
           string_t      raw, dir;
           ulong         pos, sop;
@@ -53,27 +54,76 @@ namespace nodepp { namespace _express_ {
 
           template< class T >
           coEmit( T& str, string_t path ){
-          coStart
+          gnStart
 
-               do{ auto file = fs::readable(path);
-                         raw = stream::await(file);
-                         gen = _file_::write(); pos=0; sop=0;
-                         match = regex::search_all(raw,"<°[^°]+°>");
-               } while(0); while( sop != match.size() ){ 
+               if( !url::is_valid( path ) ){
+               if( !fs::exists_file(path) ){ coEnd; }
                     
-                    reg = match[sop]; cb = new ssr(); do {
-                    auto war = raw.slice( reg[0], reg[1] );
-                         dir = regex::match( war,"[^<°> \n\t]+" );
-                    } while(0);
+                    do{ auto file = fs::readable(path);
+                              raw = stream::await(file);
+                              gen = _file_::write(); pos=0; sop=0;
+                            match = regex::search_all(raw,"<°[^°]+°>");
+                    } while(0); while( sop != match.size() ){ 
+                         
+                         reg = match[sop]; cb = new ssr(); do {
+                         auto war = raw.slice( reg[0], reg[1] );
+                              dir = regex::match( war,"[^<°> \n\t]+" );
+                         } while(0);
 
-                    while( gen( &str, raw.slice( pos, reg[0] ) )==1 )
-                         { coNext; } pos = match[sop][1]; sop++;
+                         while( gen( &str, raw.slice( pos, reg[0] ) )==1 )
+                              { coNext; } pos = match[sop][1]; sop++;
 
-                    while( (*cb)( str, dir )==1 ){ coNext; }
+                         while( (*cb)( str, dir )==1 ){ coNext; }
 
-               }   while( gen( &str, raw.slice( pos ) )==1 ){ coNext; }
+                    } while( gen( &str, raw.slice( pos ) )==1 ){ coNext; }
 
-          coStop
+               } else {
+
+                    if( url::protocol(path)=="http" ){ do {
+                         auto self = type::bind( this );
+                         fetch_t args; *state=1;
+
+                         args.url     = path;
+                         args.method  = "GET";
+                         args.headers = header_t({
+                              { "Host", url::hostname(path) },
+                              { "User-Agent", "Nodepp Fetch" }
+                         });
+
+                         http::fetch( args )
+                         .fail([=](...){ *self->state=0; }).then([=]( http_t cli ){
+                              cli.onData([=]( string_t data ){ str.write(data); });
+                              cli.onDrain.once([=](){ *self->state=0; });
+                              stream::pipe( cli );
+                         });
+
+                    } while(0); while( *state==1 ){ coNext; } }
+
+                    elif( url::protocol(path)=="https" ){ do {
+                         ssl_t ssl; fetch_t args; *state=1;
+                         auto self = type::bind( this );
+
+                         args.url     = path;
+                         args.method  = "GET";
+                         args.headers = header_t({
+                              { "Host", url::hostname(path) },
+                              { "User-Agent", "Nodepp Fetch" }
+                         });
+
+                         https::fetch( args, &ssl )
+                         .fail([=](...){ *self->state=0; }).then([=]( https_t cli ){
+                              cli.onData([=]( string_t data ){ str.write(data); });
+                              cli.onDrain.once([=](){ *self->state=0; });
+                              stream::pipe( cli );
+                         });
+
+                    } while(0); while( *state==1 ){ coNext; } }
+
+                    else { coEnd; }
+
+               }
+
+          gnStop
           }
 
      };
@@ -418,7 +468,7 @@ public:
 
     /*.........................................................................*/
 
-    const express_tcp_t& DELETE( string_t _path, CALBK cb ) const noexcept {
+    const express_tcp_t& REMOVE( string_t _path, CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "DELETE";
          item.path     = _path;
@@ -426,7 +476,7 @@ public:
          obj->list.push( item ); return (*this);
     }
 
-    const express_tcp_t& DELETE( CALBK cb ) const noexcept {
+    const express_tcp_t& REMOVE( CALBK cb ) const noexcept {
          express_item_t item; memset( &item, sizeof(item), 0 );
          item.method   = "DELETE";
          item.path     = nullptr;
@@ -660,7 +710,7 @@ namespace nodepp { namespace express { namespace http {
 
                     if( regex::test(path::mimetype(dir),"audio|video",true) ) { cli.send(); return; }
                     if( regex::test(path::mimetype(dir),"html",true) ){
-                        cli.send(); cb( cli, dir );
+                        cli.send(); process::poll::add( cb, cli, dir );
                     } else { 
                          cli.header( "Content-Length", string::to_string(str.size()) );
                          cli.header( "Cache-Control", "public, max-age=604800" );
