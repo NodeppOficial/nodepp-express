@@ -90,7 +90,7 @@ express_tls_t restFull() {
         cli.send( "Hi! I'm a POST Request" );
     });
 
-    app.DELETE([]( express_https_t cli ){
+    app.REMOVE([]( express_https_t cli ){
         cli.send( "Hi! I'm a DELETE Request" );
     });
 

@@ -88,7 +88,7 @@ express_tcp_t restFull() {
         cli.send( "Hi! I'm a POST Request" );
     });
 
-    app.DELETE([]( express_http_t cli ){
+    app.REMOVE([]( express_http_t cli ){
         cli.send( "Hi! I'm a DELETE Request" );
     });
 

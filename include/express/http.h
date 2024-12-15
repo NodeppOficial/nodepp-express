@@ -236,10 +236,11 @@ public: query_t params;
           return redirect( 302, url );
      }
 
-     express_http_t& render( string_t msg ) noexcept {
+     express_http_t& render( string_t path ) noexcept {
           if( exp->state == 0 ){ return (*this); }
-          header( "Content-Type", path::mimetype(".html") );
-          send( msg ); return (*this);
+		auto cb = _express_::ssr(); send();  
+          process::poll::add( cb, *this, path ); 
+          return (*this);
      }
 
      express_http_t& status( uint value ) noexcept {
@@ -687,8 +688,6 @@ namespace nodepp { namespace express { namespace http {
                auto pth = regex::replace( cli.path, app.get_path(), "/" );
                     pth = regex::replace_all( pth, "\\.[.]+/", "" );
 
-			auto cb = _express_::ssr();
-
                auto dir = pth.empty() ? path::join( base, "" ) :
                                         path::join( base,pth ) ;
 
@@ -708,13 +707,11 @@ namespace nodepp { namespace express { namespace http {
                if ( cli.headers["Range"].empty() == true ){
                     cli.header( "Content-Type", path::mimetype(dir) );
 
-                    if( regex::test(path::mimetype(dir),"audio|video",true) ) { cli.send(); return; }
-                    if( regex::test(path::mimetype(dir),"html",true) ){
-                        cli.send(); process::poll::add( cb, cli, dir );
-                    } else { 
-                         cli.header( "Content-Length", string::to_string(str.size()) );
-                         cli.header( "Cache-Control", "public, max-age=604800" );
-                         cli.sendStream( str );
+                    if( regex::test(path::mimetype(dir),"audio|video",true) ){ cli.send(); return; }
+                    if( regex::test(path::mimetype(dir),"html",true) ){ cli.render( dir ); } else { 
+                        cli.header( "Content-Length", string::to_string(str.size()) );
+                        cli.header( "Cache-Control", "public, max-age=604800" );
+                        cli.sendStream( str );
                     }
 
                } else {
