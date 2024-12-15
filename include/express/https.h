@@ -57,7 +57,7 @@ namespace nodepp { namespace _express_ {
           gnStart
 
                if( !url::is_valid( path ) ){
-               if( !fs::exists_file(path) ){ coEnd; }
+               if( !fs::exists_file(path) ){ coGoto(1); }
                     
                     do{ auto file = fs::readable(path);
                               raw = stream::await(file);
@@ -119,7 +119,26 @@ namespace nodepp { namespace _express_ {
 
                     } while(0); while( *state==1 ){ coNext; } }
 
-                    else { coEnd; }
+                    else { coYield(1);
+                    
+                         do{  raw = path;
+                              gen = _file_::write(); pos=0; sop=0;
+                            match = regex::search_all(raw,"<°[^°]+°>");
+                         } while(0); while( sop != match.size() ){ 
+                              
+                              reg = match[sop]; cb = new ssr(); do {
+                              auto war = raw.slice( reg[0], reg[1] );
+                                   dir = regex::match( war,"[^<°> \n\t]+" );
+                              } while(0);
+
+                              while( gen( &str, raw.slice( pos, reg[0] ) )==1 )
+                                   { coNext; } pos = match[sop][1]; sop++;
+
+                              while( (*cb)( str, dir )==1 ){ coNext; }
+
+                         } while( gen( &str, raw.slice( pos ) )==1 ){ coNext; }
+
+                    }
 
                }
 
