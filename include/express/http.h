@@ -307,8 +307,7 @@ protected:
      };   ptr_t<NODE> obj;
 
      void execute( string_t path, express_item_t& data, express_http_t& cli, function_t<void>& next ) const noexcept {
-            if( cli.is_express_closed()     ){ next(); }
-          elif( data.middleware.has_value() ){ data.middleware.value()( cli, next ); }
+            if( data.middleware.has_value() ){ data.middleware.value()( cli, next ); }
           elif( data.callback.has_value()   ){ data.callback.value()( cli ); next(); }
           elif( data.router.has_value()     ){ 
                 auto self = type::bind( data.router.value().as<express_tcp_t>() );
@@ -338,16 +337,22 @@ protected:
      }
 
      void run( string_t path, express_http_t& cli ) const noexcept {
-          auto n = obj->list.first(); function_t<void> next = [&](){ n = n->next; };
+
+          auto n     = obj->list.first(); 
           auto _base = normalize( path, obj->path );
-          while( n!=nullptr ){ if( !cli.is_available() ){ break; }
+          function_t<void> next = [&](){ n = n->next; };
+
+          while( n!=nullptr ){
+               if( !cli.is_available() || cli.is_express_closed() ){ break; } 
                if(( n->data.path == nullptr && regex::test( cli.path, "^"+_base )) 
                || ( n->data.path == nullptr && obj->path == nullptr ) 
                || ( path_match( cli, _base, n->data.path )) ){
-               if ( n->data.method==nullptr || n->data.method==cli.method )
-                  { execute( _base, n->data, cli, next ); } else { next(); }
+               if ( n->data.method==nullptr || n->data.method==cli.method ){ 
+                    execute( _base, n->data, cli, next ); 
+               } else { next(); }
                } else { next(); }
           }
+
      }
 
      string_t normalize( string_t base, string_t path ) const noexcept {

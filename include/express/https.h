@@ -308,7 +308,7 @@ protected:
      };   ptr_t<NODE> obj;
 
      void execute( string_t path, express_item_t& data, express_https_t& cli, function_t<void>& next ) const noexcept {
-            if( cli.is_express_closed()     ){ next(); }   
+            if( !cli.is_available() || cli.is_express_closed() ){ next(); } 
           elif( data.middleware.has_value() ){ data.middleware.value()( cli, next ); }
           elif( data.callback.has_value()   ){ data.callback.value()( cli ); next(); }
           elif( data.router.has_value()     ){ 
@@ -339,16 +339,22 @@ protected:
      }
 
      void run( string_t path, express_https_t& cli ) const noexcept {
-          auto n = obj->list.first(); function_t<void> next = [&](){ n = n->next; };
+
+          auto n     = obj->list.first(); 
           auto _base = normalize( path, obj->path );
-          while( n!=nullptr ){ if( !cli.is_available() ){ break; } 
+          function_t<void> next = [&](){ n = n->next; };
+
+          while( n!=nullptr ){
+               if( !cli.is_available() || cli.is_express_closed() ){ break; } 
                if(( n->data.path == nullptr && regex::test( cli.path, "^"+_base )) 
                || ( n->data.path == nullptr && obj->path == nullptr ) 
                || ( path_match( cli, _base, n->data.path )) ){
-               if ( n->data.method==nullptr || n->data.method==cli.method )
-                  { execute( _base, n->data, cli, next ); } else { next(); }
+               if ( n->data.method==nullptr || n->data.method==cli.method ){ 
+                    execute( _base, n->data, cli, next ); 
+               } else { next(); }
                } else { next(); }
           }
+          
      }
 
      string_t normalize( string_t base, string_t path ) const noexcept {
@@ -621,14 +627,13 @@ public:
 
     template<class... T> 
     tls_t& listen( const T&... args ) const {
+          if( obj->ssl == nullptr ){ process::error("SSL not found"); }
           auto self = type::bind( this );
 
           function_t<void,https_t> cb = [=]( https_t cli ){
                express_https_t res( cli ); 
                self->run( nullptr, res );
           };
-
-          if( obj->ssl == nullptr ){ process::error("SSL not found"); }
 
           obj->fd=https::server( cb, obj->ssl, obj->agent );
           obj->fd.listen( args... ); return obj->fd;
@@ -737,7 +742,7 @@ namespace nodepp { namespace express { namespace https {
                     if( regex::test(path::mimetype(dir),"html",true) ){ cli.render( dir ); } else { 
                         cli.header( "Content-Length", string::to_string(str.size()) );
                         cli.header( "Cache-Control", "public, max-age=604800" );
-			cli.sendStream( str );
+			         cli.sendStream( str );
                     }
 
                } else {
