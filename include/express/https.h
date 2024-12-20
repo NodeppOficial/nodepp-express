@@ -86,8 +86,9 @@ namespace nodepp { namespace _express_ {
                          args.url     = path;
                          args.method  = "GET";
                          args.headers = header_t({
-                              { "Host", url::hostname(path) },
-                              { "User-Agent", "Nodepp Fetch" }
+                              { "Params", query::format( str.params ) },
+                              { "User-Agent", "Nodepp Fetch" },
+                              { "Host", url::hostname(path) }
                          });
 
                          http::fetch( args )
@@ -106,8 +107,9 @@ namespace nodepp { namespace _express_ {
                          args.url     = path;
                          args.method  = "GET";
                          args.headers = header_t({
-                              { "Host", url::hostname(path) },
-                              { "User-Agent", "Nodepp Fetch" }
+                              { "Params", query::format( str.params ) },
+                              { "User-Agent", "Nodepp Fetch" },
+                              { "Host", url::hostname(path) }
                          });
 
                          https::fetch( args, &ssl )
@@ -631,8 +633,9 @@ public:
           auto self = type::bind( this );
 
           function_t<void,https_t> cb = [=]( https_t cli ){
-               express_https_t res( cli ); 
-               self->run( nullptr, res );
+               express_https_t res( cli ); if( res.headers["params"] ){
+                   res.params = query::parse( res.headers["params"] ); 
+               }   self->run( nullptr, res );
           };
 
           obj->fd=https::server( cb, obj->ssl, obj->agent );
