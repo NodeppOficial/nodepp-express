@@ -360,7 +360,8 @@ protected:
      }
 
      string_t normalize( string_t base, string_t path ) const noexcept {
-          return base.empty() ? path : path.empty() ? base : path::join( base, path );
+          return base.empty() ? ("/"+path) : path.empty() ? 
+                                ("/"+base) : path::join( base, path );
      }
 
 public:
