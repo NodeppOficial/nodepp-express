@@ -674,7 +674,7 @@ namespace nodepp { namespace express { namespace http {
                     if( regex::test(path::mimetype(dir),"audio|video",true) ){ cli.send(); return; }
                     if( regex::test(path::mimetype(dir),"html",true) ){ cli.render(dir); } else { 
                         cli.header( "Cache-Control", "public, max-age=604800" );
-			         cli.SendFile( dir );
+			         cli.sendFile( dir );
                     }
 
                } else { auto str = fs::readable( dir );
