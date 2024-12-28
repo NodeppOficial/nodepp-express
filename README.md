@@ -47,10 +47,12 @@ void onMain() {
 
     app.GET([]( express_http_t cli ){
         cli.status(200)
-           .header( "content-type", "text/plain" )
-           .render( _STRING_(
-                <h1> <° http://localhost:8000/test °> </h1>
-            ));
+           .header( "content-type", "text/html" )
+           .render( R"(
+                <h1> 
+                    <° http://localhost:8000/test °> 
+                </h1>
+            )" );
     });
 
     app.listen( "localhost", 8000, []( ... ){
@@ -59,7 +61,6 @@ void onMain() {
     });
 
 }
-
 ```
 
 ## License
