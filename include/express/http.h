@@ -180,7 +180,7 @@ public: query_t params;
 
     /*.........................................................................*/
 
-     express_http_t& send( string_t msg ) noexcept { 
+     const express_http_t& send( string_t msg ) const noexcept { 
           if( exp->state == 0 ){ return (*this); }
           header( "Content-Length", string::to_string(msg.size()) );
           if( regex::test( headers["Accept-Encoding"], "gzip" ) && msg.size()>UNBFF_SIZE ){
@@ -191,7 +191,7 @@ public: query_t params;
           }   exp->state =0; return (*this); 
      }
 
-     express_http_t& sendFile( string_t dir ) noexcept {
+     const express_http_t& sendFile( string_t dir ) const noexcept {
           if( exp->state == 0 ){ return (*this); } if( fs::exists_file( dir ) == false )
             { status(404).send("file does not exist"); } file_t file ( dir, "r" );
               header( "Content-Length", string::to_string(file.size()) );
@@ -204,38 +204,38 @@ public: query_t params;
           }   exp->state = 0; return (*this);
      }
 
-     express_http_t& sendJSON( object_t json ) noexcept {
+     const express_http_t& sendJSON( object_t json ) const noexcept {
           if( exp->state == 0 ){ return (*this); } auto data = json::stringify(json);
           header( "content-length", string::to_string(data.size()) );
           header( "content-type", path::mimetype(".json") );
           send( data ); exp->state = 0; return (*this);
      }
 
-     express_http_t& cache( ulong time ) noexcept {
+     const express_http_t& cache( ulong time ) const noexcept {
           if( exp->state == 0 ){ return (*this); }
           header( "Cache-Control",string::format( "public, max-age=%lu",time) );
           return (*this);
      }
 
-     express_http_t& cookie( string_t name, string_t value ) noexcept {
+     const express_http_t& cookie( string_t name, string_t value ) const noexcept {
           if( exp->state == 0 ){ return (*this); } exp->_cookies[ name ] = value;
           header( "Set-Cookie", cookie::format( exp->_cookies ) );
           return (*this);
      }
 
-     express_http_t& header( string_t name, string_t value ) noexcept {
+     const express_http_t& header( string_t name, string_t value ) const noexcept {
           if( exp->state == 0 )    { return (*this); }
           exp->_headers[name]=value; return (*this);
      }
 
-     express_http_t& redirect( uint value, string_t url ) noexcept {
+     const express_http_t& redirect( uint value, string_t url ) const noexcept {
           if( exp->state == 0 ){ return (*this); }
           header( "location",url ); status( value ); 
           send(); exp->state = 0; return (*this);
      }
 
      template< class T >
-     express_http_t& sendStream( T readableStream ) noexcept {
+     const express_http_t& sendStream( T readableStream ) const noexcept {
           if( exp->state == 0 ){ return (*this); }
           if( regex::test( headers["Accept-Encoding"], "gzip" ) ){
               header( "Content-Encoding", "gzip" ); send();
@@ -245,43 +245,43 @@ public: query_t params;
           }   exp->state = 0; return (*this);
      }
 
-     express_http_t& header( header_t headers ) noexcept {
+     const express_http_t& header( header_t headers ) const noexcept {
           if( exp->state == 0 ){ return (*this); }
           forEach( item, headers.data() ){
               header( item.first, item.second );
           }   return (*this);
      }
 
-     express_http_t& redirect( string_t url ) noexcept {
+     const express_http_t& redirect( string_t url ) const noexcept {
           if( exp->state == 0 ){ return (*this); }
           return redirect( 302, url );
      }
 
-     express_http_t& render( string_t path ) noexcept {
+     const express_http_t& render( string_t path ) const noexcept {
           if( exp->state == 0 ){ return (*this); }
 		auto cb = _express_::ssr(); send();  
           process::poll::add( cb, *this, path ); 
           return (*this);
      }
 
-     express_http_t& status( uint value ) noexcept {
+     const express_http_t& status( uint value ) const noexcept {
           if( exp->state == 0 ){ return (*this); }
               exp->status=value; return (*this);
      }
 
-     express_http_t& clear_cookies() noexcept {
+     const express_http_t& clear_cookies() const noexcept {
           if( exp->state == 0 ){ return (*this); } 
           header( "Clear-Site-Data", "\"cookies\"" );
           return (*this);
      }
 
-     express_http_t& send() noexcept {
+     const express_http_t& send() const noexcept {
           if( exp->state == 0 ){ return (*this); }
           write_header(exp->status,exp->_headers);
           exp->state = 0; return (*this);
      }
 
-     express_http_t& done() noexcept {
+     const express_http_t& done() const noexcept {
           if( exp->state == 0 ){ return (*this); }
           exp->state = 0; return (*this);
      }
