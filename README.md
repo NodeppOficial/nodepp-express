@@ -1,6 +1,6 @@
 # NODEPP-EXPRESS
 
-A Simple ExpressJS Implementation in [C++/NodePP]([NodePP](https://github.com/NodeppOficial/nodepp))
+A Simple ExpressJS Implementation in [C++/NodePP]([NodePP](https://github.com/NodeppOficial/nodepp)) that supports server side rendering
 
 ## Dependencies
 ```bash
@@ -42,13 +42,15 @@ void onMain() {
     app.GET("/test",[]( express_http_t cli ){
         cli.status(200)
            .header( "content-type", "text/plain" )
-           .send("this is a test");
+           .send("this is an ExpressPP test");
     });
 
     app.GET([]( express_http_t cli ){
         cli.status(200)
            .header( "content-type", "text/plain" )
-           .send("Hello World!");
+           .render( _STRING_(
+                <h1> <° http://localhost:8000/test °> </h1>
+            ));
     });
 
     app.listen( "localhost", 8000, []( ... ){
